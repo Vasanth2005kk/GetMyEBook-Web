@@ -21,32 +21,29 @@
 #  along with this program. If not, see <http://www.gnu.org/licenses/>
 
 import json
+import secrets
 from functools import wraps
+from urllib.parse import quote, unquote
 
 from flask import session, request, make_response, abort
 from flask import Blueprint, flash, redirect, url_for
 from flask_babel import gettext as _
-from flask_dance.consumer import oauth_authorized, oauth_error
-from flask_dance.contrib.github import make_github_blueprint, github
-from flask_dance.contrib.google import make_google_blueprint, google
-from oauthlib.oauth2 import TokenExpiredError, InvalidGrantError
+from authlib.integrations.flask_client import OAuth
 from .cw_login import login_user, current_user
 from sqlalchemy.orm.exc import NoResultFound
 from .usermanagement import user_login_required
+from werkzeug.security import generate_password_hash
 
 from . import constants, logger, config, app, ub
-
-try:
-    from .oauth import OAuthBackend, backend_resultcode
-except NameError:
-    pass
-
+from datetime import datetime
 
 oauth_check = {}
 oauthblueprints = []
 oauth = Blueprint('oauth', __name__)
 log = logger.create()
 
+# Initialize Authlib OAuth
+oauth_client = OAuth(app)
 
 def oauth_required(f):
     @wraps(f)
@@ -84,8 +81,8 @@ def register_user_with_oauth(user=None):
                 provider_user_id=session[str(oauth_key) + "_oauth_user_id"],
             )
             try:
-                oauth_key = query.one()
-                oauth_key.user_id = user.id
+                oauth_entry = query.one()
+                oauth_entry.user_id = user.id
             except NoResultFound:
                 # no found, return error
                 return
@@ -100,7 +97,7 @@ def logout_oauth_user():
 
 def oauth_update_token(provider_id, token, provider_user_id):
     session[provider_id + "_oauth_user_id"] = provider_user_id
-    session[provider_id + "_oauth_token"] = token
+    session[provider_id + "_oauth_token"] = json.dumps(token)
 
     # Find this OAuth token in the database, or create it
     query = ub.session.query(ub.OAuth).filter_by(
@@ -110,60 +107,146 @@ def oauth_update_token(provider_id, token, provider_user_id):
     try:
         oauth_entry = query.one()
         # update token
-        oauth_entry.token = token
+        oauth_entry.token = json.dumps(token)
     except NoResultFound:
         oauth_entry = ub.OAuth(
             provider=provider_id,
             provider_user_id=provider_user_id,
-            token=token,
+            token=json.dumps(token),
         )
     ub.session.add(oauth_entry)
     ub.session_commit()
 
-    # Disable Flask-Dance's default behavior for saving the OAuth token
-    # Value differrs depending on flask-dance version
-    return backend_resultcode
+    return True
 
 
-def bind_oauth_or_register(provider_id, provider_user_id, redirect_url, provider_name):
-    query = ub.session.query(ub.OAuth).filter_by(
-        provider=provider_id,
-        provider_user_id=provider_user_id,
-    )
+def generate_state():
+    """Generate a secure state token for OAuth"""
+    state = secrets.token_urlsafe(16)
+    session['oauth_state'] = state
+    return state
+
+
+def validate_state(state):
+    """Validate the state token from OAuth callback"""
+    stored_state = session.pop('oauth_state', None)
+    if stored_state is None:
+        log.warning("No stored state found in session")
+        return False
+    if stored_state != state:
+        log.warning(f"State mismatch: stored={stored_state}, received={state}")
+        return False
+    return True
+
+
+def handle_sso_login(provider_id, provider_user_id, token, user_info, provider_name):
+    """
+    Handle SSO login - either login existing user or create new one
+    """
     try:
-        oauth_entry = query.first()
-        # already bind with user, just login
-        if oauth_entry.user:
+        log.debug(f"Starting SSO login for {provider_name} user: {provider_user_id}")
+
+        # First, check if we have an OAuth entry for this provider user
+        oauth_entry = ub.session.query(ub.OAuth).filter_by(
+            provider=provider_id,
+            provider_user_id=provider_user_id,
+        ).first()
+
+        # If OAuth entry exists and has a user, log them in
+        if oauth_entry and oauth_entry.user:
             login_user(oauth_entry.user)
-            log.debug("You are now logged in as: '%s'", oauth_entry.user.name)
-            flash(_("Success! You are now logged in as: %(nickname)s", nickname=oauth_entry.user.name),
-                  category="success")
+            log.debug("SSO Login successful for existing OAuth user: '%s'", oauth_entry.user.name)
+            flash(_("Success! You are now logged in as: %(nickname)s", nickname=oauth_entry.user.name), category="success")
             return redirect(url_for('web.index'))
-        else:
-            # bind to current user
-            if current_user and current_user.is_authenticated:
-                oauth_entry.user = current_user
-                try:
-                    ub.session.add(oauth_entry)
-                    ub.session.commit()
-                    flash(_("Link to %(oauth)s Succeeded", oauth=provider_name), category="success")
-                    log.info("Link to {} Succeeded".format(provider_name))
-                    return redirect(url_for('web.profile'))
-                except Exception as ex:
-                    log.error_or_exception(ex)
-                    ub.session.rollback()
-            else:
-                flash(_("Login failed, No User Linked With OAuth Account"), category="error")
-            log.info('Login failed, No User Linked With OAuth Account')
+
+        # Check if user exists by email
+        email = user_info.get('email')
+        if email:
+            existing_user = ub.session.query(ub.User).filter(ub.User.email == email).first()
+            if existing_user:
+                # Link this OAuth to existing user and login
+                if not oauth_entry:
+                    oauth_entry = ub.OAuth(
+                        provider=provider_id,
+                        provider_user_id=provider_user_id,
+                        token=json.dumps(token),
+                        user_id=existing_user.id
+                    )
+                else:
+                    oauth_entry.user_id = existing_user.id
+                
+                ub.session.add(oauth_entry)
+                ub.session.commit()
+                
+                login_user(existing_user)
+                log.debug("SSO Login successful for existing email user: '%s'", existing_user.name)
+                flash(_("Success! You are now logged in as: %(nickname)s", nickname=existing_user.name), category="success")
+                return redirect(url_for('web.index'))
+
+        # Create new user from SSO data
+        return create_user_from_sso(provider_id, provider_user_id, token, user_info, provider_name)
+
+    except Exception as e:
+        log.error("Error in handle_sso_login: %s", e)
+        flash(_("SSO login failed. Please try again."), category="error")
+        return redirect(url_for('web.login'))
+
+
+def create_user_from_sso(provider_id, provider_user_id, token, user_info, provider_name):
+    """
+    Create a new user from SSO data
+    """
+    try:
+        email = user_info.get('email')
+        name = user_info.get('name') or user_info.get('login') or f"{provider_name}_user_{provider_user_id}"
+        
+        if not email:
+            flash(_("Email is required for SSO registration"), category="error")
             return redirect(url_for('web.login'))
-            # return redirect(url_for('web.login'))
-            # if config.config_public_reg:
-            #   return redirect(url_for('web.register'))
-            # else:
-            #    flash(_("Public registration is not enabled"), category="error")
-            #    return redirect(url_for(redirect_url))
-    except (NoResultFound, AttributeError):
-        return redirect(url_for(redirect_url))
+
+        # Check if username already exists
+        existing_username = ub.session.query(ub.User).filter(ub.User.name == name).first()
+        if existing_username:
+            # Append provider user ID to make username unique
+            name = f"{name}_{provider_user_id}"[:64]
+
+        # Generate a random password for SSO users
+        random_password = secrets.token_urlsafe(16)
+
+        # Create new user
+        new_user = ub.User()
+        new_user.name = name[:64]  # Truncate to max length
+        new_user.email = email
+        new_user.password = generate_password_hash(random_password)
+        new_user.role = config.config_default_role
+        new_user.locale = config.config_default_locale
+        new_user.sidebar_view = config.config_default_show
+        new_user.default_language = config.config_default_language
+
+        ub.session.add(new_user)
+        ub.session.flush()  # Get the new user ID
+
+        # Create OAuth entry
+        oauth_entry = ub.OAuth(
+            provider=provider_id,
+            provider_user_id=provider_user_id,
+            token=json.dumps(token),
+            user_id=new_user.id
+        )
+        ub.session.add(oauth_entry)
+        ub.session.commit()
+
+        # Login the new user
+        login_user(new_user)
+        log.debug("SSO Registration and login successful for new user: '%s'", new_user.name)
+        flash(_("Success! Account created and you are now logged in as: %(nickname)s", nickname=new_user.name), category="success")
+        return redirect(url_for('web.index'))
+
+    except Exception as e:
+        ub.session.rollback()
+        log.error("Error creating user from SSO: %s", e)
+        flash(_("Failed to create account. Please try again or contact administrator."), category="error")
+        return redirect(url_for('web.login'))
 
 
 def get_oauth_status():
@@ -190,7 +273,6 @@ def unlink_oauth(provider):
     try:
         oauth_entry = query.one()
         if current_user and current_user.is_authenticated:
-            oauth_entry.user = current_user
             try:
                 ub.session.delete(oauth_entry)
                 ub.session.commit()
@@ -217,127 +299,147 @@ def generate_oauth_blueprints():
             ub.session_commit("{} Blueprint Created".format(provider))
 
     oauth_ids = ub.session.query(ub.OAuthProvider).all()
-    ele1 = dict(provider_name='github',
-                id=oauth_ids[0].id,
-                active=oauth_ids[0].active,
-                oauth_client_id=oauth_ids[0].oauth_client_id,
-                scope=None,
-                oauth_client_secret=oauth_ids[0].oauth_client_secret,
-                obtain_link='https://github.com/settings/developers')
-    ele2 = dict(provider_name='google',
-                id=oauth_ids[1].id,
-                active=oauth_ids[1].active,
-                scope=["https://www.googleapis.com/auth/userinfo.email"],
-                oauth_client_id=oauth_ids[1].oauth_client_id,
-                oauth_client_secret=oauth_ids[1].oauth_client_secret,
-                obtain_link='https://console.developers.google.com/apis/credentials')
+    
+    # GitHub OAuth configuration
+    ele1 = dict(
+        provider_name='github',
+        id=oauth_ids[0].id,
+        active=oauth_ids[0].active,
+        oauth_client_id=oauth_ids[0].oauth_client_id,
+        oauth_client_secret=oauth_ids[0].oauth_client_secret,
+        obtain_link='https://github.com/settings/developers'
+    )
+    
+    # Google OAuth configuration  
+    ele2 = dict(
+        provider_name='google',
+        id=oauth_ids[1].id,
+        active=oauth_ids[1].active,
+        oauth_client_id=oauth_ids[1].oauth_client_id,
+        oauth_client_secret=oauth_ids[1].oauth_client_secret,
+        obtain_link='https://console.developers.google.com/apis/credentials'
+    )
+    
     oauthblueprints.append(ele1)
     oauthblueprints.append(ele2)
 
+    # Register OAuth clients with Authlib
     for element in oauthblueprints:
-        if element['provider_name'] == 'github':
-            blueprint_func = make_github_blueprint
-        else:
-            blueprint_func = make_google_blueprint
-        blueprint = blueprint_func(
-            client_id=element['oauth_client_id'],
-            client_secret=element['oauth_client_secret'],
-            redirect_to="oauth."+element['provider_name']+"_login",
-            scope=element['scope']
-        )
-        element['blueprint'] = blueprint
-        element['blueprint'].backend = OAuthBackend(ub.OAuth, ub.session, str(element['id']),
-                                                    user=current_user, user_required=True)
-        app.register_blueprint(blueprint, url_prefix="/login")
-        if element['active']:
-            register_oauth_blueprint(element['id'], element['provider_name'])
+        if element['active'] and element['oauth_client_id'] and element['oauth_client_secret']:
+            if element['provider_name'] == 'github':
+                oauth_client.register(
+                    name='github',
+                    client_id=element['oauth_client_id'],
+                    client_secret=element['oauth_client_secret'],
+                    access_token_url='https://github.com/login/oauth/access_token',
+                    authorize_url='https://github.com/login/oauth/authorize',
+                    api_base_url='https://api.github.com/',
+                    client_kwargs={'scope': 'user:email'},
+                )
+                register_oauth_blueprint(element['id'], element['provider_name'])
+                log.info(f"GitHub OAuth provider registered: {element['oauth_client_id'][:10]}...")
+                
+            elif element['provider_name'] == 'google':
+                oauth_client.register(
+                    name='google',
+                    client_id=element['oauth_client_id'],
+                    client_secret=element['oauth_client_secret'],
+                    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+                    client_kwargs={
+                        'scope': 'openid email profile',
+                        'prompt': 'select_account'
+                    }
+                )
+                register_oauth_blueprint(element['id'], element['provider_name'])
+                log.info(f"Google OAuth provider registered: {element['oauth_client_id'][:10]}...")
+    
     return oauthblueprints
 
 
+# Initialize OAuth blueprints if support is enabled
 if ub.oauth_support:
     oauthblueprints = generate_oauth_blueprints()
-
-    @oauth_authorized.connect_via(oauthblueprints[0]['blueprint'])
-    def github_logged_in(blueprint, token):
-        if not token:
-            flash(_("Failed to log in with GitHub."), category="error")
-            log.error("Failed to log in with GitHub")
-            return False
-
-        resp = blueprint.session.get("/user")
-        if not resp.ok:
-            flash(_("Failed to fetch user info from GitHub."), category="error")
-            log.error("Failed to fetch user info from GitHub")
-            return False
-
-        github_info = resp.json()
-        github_user_id = str(github_info["id"])
-        return oauth_update_token(str(oauthblueprints[0]['id']), token, github_user_id)
+    log.info("OAuth blueprints initialized with %d providers", len(oauthblueprints))
 
 
-    @oauth_authorized.connect_via(oauthblueprints[1]['blueprint'])
-    def google_logged_in(blueprint, token):
-        if not token:
-            flash(_("Failed to log in with Google."), category="error")
-            log.error("Failed to log in with Google")
-            return False
-
-        resp = blueprint.session.get("/oauth2/v2/userinfo")
-        if not resp.ok:
-            flash(_("Failed to fetch user info from Google."), category="error")
-            log.error("Failed to fetch user info from Google")
-            return False
-
-        google_info = resp.json()
-        google_user_id = str(google_info["id"])
-        return oauth_update_token(str(oauthblueprints[1]['id']), token, google_user_id)
-
-
-
-    # notify on OAuth provider error
-    @oauth_error.connect_via(oauthblueprints[0]['blueprint'])
-    def github_error(blueprint, error, error_description=None, error_uri=None):
-        msg = (
-            "OAuth error from {name}! "
-            "error={error} description={description} uri={uri}"
-        ).format(
-            name=blueprint.name,
-            error=error,
-            description=error_description,
-            uri=error_uri,
-        )  # ToDo: Translate
-        flash(msg, category="error")
-
-    @oauth_error.connect_via(oauthblueprints[1]['blueprint'])
-    def google_error(blueprint, error, error_description=None, error_uri=None):
-        msg = (
-            "OAuth error from {name}! "
-            "error={error} description={description} uri={uri}"
-        ).format(
-            name=blueprint.name,
-            error=error,
-            description=error_description,
-            uri=error_uri,
-        )  # ToDo: Translate
-        flash(msg, category="error")
-
-
+# GitHub OAuth Routes
 @oauth.route('/link/github')
 @oauth_required
 def github_login():
-    if not github.authorized:
-        return redirect(url_for('github.login'))
     try:
-        account_info = github.get('/user')
-        if account_info.ok:
-            account_info_json = account_info.json()
-            return bind_oauth_or_register(oauthblueprints[0]['id'], account_info_json['id'], 'github.login', 'github')
-        flash(_("GitHub Oauth error, please retry later."), category="error")
-        log.error("GitHub Oauth error, please retry later")
-    except (InvalidGrantError, TokenExpiredError) as e:
-        flash(_("GitHub Oauth error: {}").format(e), category="error")
-        log.error(e)
-    return redirect(url_for('web.login'))
+        redirect_uri = url_for('oauth.github_callback', _external=True)
+        log.info(f"GitHub OAuth redirect_uri: {redirect_uri}")
+        
+        # Generate state and pass it to authorize_redirect
+        state = generate_state()
+        log.debug(f"Generated GitHub state: {state}")
+        return oauth_client.github.authorize_redirect(redirect_uri, state=state)
+    except Exception as e:
+        log.error(f"Error in GitHub login: {e}")
+        flash(_('Failed to start GitHub authentication'), 'error')
+        return redirect(url_for('web.login'))
+
+
+@oauth.route('/auth/github/callback')
+def github_callback():
+    try:
+        log.debug("GitHub callback received")
+        
+        # Get state from request args and validate it
+        state = request.args.get('state')
+        log.debug(f"Received GitHub state: {state}")
+        
+        if not validate_state(state):
+            log.error("CSRF state validation failed for GitHub")
+            flash(_('Security validation failed. Please try again.'), 'error')
+            return redirect(url_for('web.login'))
+        
+        token = oauth_client.github.authorize_access_token()
+        if not token:
+            flash(_('Failed to get authorization token from GitHub'), 'error')
+            return redirect(url_for('web.login'))
+        
+        log.debug("Successfully obtained GitHub access token")
+        
+        # Get user info from GitHub
+        resp = oauth_client.github.get('user', token=token)
+        if resp.status_code != 200:
+            log.error(f"GitHub API error: {resp.status_code} - {resp.text}")
+            flash(_('Failed to fetch user info from GitHub'), 'error')
+            return redirect(url_for('web.login'))
+            
+        user_info = resp.json()
+        log.debug(f"GitHub user info: {user_info}")
+        
+        # Get email if not provided in user info
+        if not user_info.get('email'):
+            log.debug("Fetching GitHub user emails")
+            resp_email = oauth_client.github.get('user/emails', token=token)
+            if resp_email.status_code == 200:
+                emails = resp_email.json()
+                primary_email = next((email for email in emails if email.get('primary')), None)
+                if primary_email:
+                    user_info['email'] = primary_email.get('email')
+                    log.debug(f"Found primary email: {user_info['email']}")
+        
+        github_id = str(user_info['id'])
+        email = user_info.get('email')
+        name = user_info.get('name') or user_info.get('login')
+        
+        if not github_id:
+            flash(_('Invalid user information received from GitHub'), 'error')
+            return redirect(url_for('web.login'))
+
+        log.debug(f"GitHub user - ID: {github_id}, Email: {email}, Name: {name}")
+
+        # Update token and handle SSO login
+        oauth_update_token(str(oauthblueprints[0]['id']), token, github_id)
+        return handle_sso_login(str(oauthblueprints[0]['id']), github_id, token, user_info, 'GitHub')
+        
+    except Exception as e:
+        log.error_or_exception(f"Error during GitHub OAuth callback: {e}")
+        flash(_('Authentication failed: %(error)s', error=str(e)), 'error')
+        return redirect(url_for('web.login'))
 
 
 @oauth.route('/unlink/github', methods=["GET"])
@@ -346,22 +448,75 @@ def github_login_unlink():
     return unlink_oauth(oauthblueprints[0]['id'])
 
 
+# Google OAuth Routes
 @oauth.route('/link/google')
 @oauth_required
 def google_login():
-    if not google.authorized:
-        return redirect(url_for("google.login"))
     try:
-        resp = google.get("/oauth2/v2/userinfo")
-        if resp.ok:
-            account_info_json = resp.json()
-            return bind_oauth_or_register(oauthblueprints[1]['id'], account_info_json['id'], 'google.login', 'google')
-        flash(_("Google Oauth error, please retry later."), category="error")
-        log.error("Google Oauth error, please retry later")
-    except (InvalidGrantError, TokenExpiredError) as e:
-        flash(_("Google Oauth error: {}").format(e), category="error")
-        log.error(e)
-    return redirect(url_for('web.login'))
+        redirect_uri = url_for('oauth.google_callback', _external=True)
+        log.info(f"Google OAuth redirect_uri: {redirect_uri}")
+        
+        # Generate state and pass it to authorize_redirect
+        state = generate_state()
+        log.debug(f"Generated Google state: {state}")
+        return oauth_client.google.authorize_redirect(redirect_uri, state=state)
+    except Exception as e:
+        log.error(f"Error in Google login: {e}")
+        flash(_('Failed to start Google authentication'), 'error')
+        return redirect(url_for('web.login'))
+
+
+@oauth.route('/auth/google/callback')
+def google_callback():
+    try:
+        log.debug("Google callback received")
+        
+        # Get state from request args and validate it
+        state = request.args.get('state')
+        log.debug(f"Received Google state: {state}")
+        
+        if not validate_state(state):
+            log.error("CSRF state validation failed for Google")
+            flash(_('Security validation failed. Please try again.'), 'error')
+            return redirect(url_for('web.login'))
+        
+        token = oauth_client.google.authorize_access_token()
+        if not token:
+            flash(_('Failed to get authorization token from Google'), 'error')
+            return redirect(url_for('web.login'))
+        
+        log.debug("Successfully obtained Google access token")
+        
+        # Get user info from the token
+        user_info = token.get('userinfo')
+        if not user_info:
+            # Fallback: fetch user info from Google API
+            log.debug("Fetching user info from Google API")
+            resp = oauth_client.google.get('userinfo', token=token)
+            if resp.status_code != 200:
+                log.error(f"Google API error: {resp.status_code} - {resp.text}")
+                flash(_('Failed to fetch user info from Google'), 'error')
+                return redirect(url_for('web.login'))
+            user_info = resp.json()
+       
+        google_id = user_info.get('sub')
+        email = user_info.get('email')
+        name = user_info.get('name')
+
+        if not google_id or not email:
+            flash(_('Invalid user information received from Google'), 'error')
+            return redirect(url_for('web.login'))
+
+        log.debug(f"Google user - ID: {google_id}, Email: {email}, Name: {name}")
+
+        # Update token and handle SSO login
+        oauth_update_token(str(oauthblueprints[1]['id']), token, google_id)
+        return handle_sso_login(str(oauthblueprints[1]['id']), google_id, token, user_info, 'Google')
+        
+    except Exception as e:
+        log.error_or_exception(f"Error during Google OAuth callback: {e}")
+        flash(_('Authentication failed: %(error)s', error=str(e)), 'error')
+        return redirect(url_for('web.login'))
 
 
 @oauth.route('/unlink/google', methods=["GET"])

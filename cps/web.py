@@ -1367,7 +1367,7 @@ def handle_login_user(user, remember, message, category):
     return redirect(get_redirect_location(request.form.get('next', None), "web.index"))
 
 
-def render_login(username="", password=""):
+def render_login(username="", password="", sso_providers=None):
     next_url = request.args.get('next', default=url_for("web.index"), type=str)
     if url_for("web.logout") == next_url:
         next_url = url_for("web.index")
@@ -1377,7 +1377,7 @@ def render_login(username="", password=""):
                                  config=config,
                                  username=username,
                                  password=password,
-                                 oauth_check=oauth_check,
+                                 sso_providers=sso_providers or [],
                                  mail=config.get_mail_server_configured(), page="login")
 
 
@@ -1436,8 +1436,17 @@ def login():
     if config.config_login_type == constants.LOGIN_LDAP and not services.ldap:
         log.error(u"Cannot activate LDAP authentication")
         flash(_(u"Cannot activate LDAP authentication"), category="error")
-    return render_login()
-
+    
+    # Get OAuth status for showing SSO options
+    sso_providers = []
+    if feature_support['oauth'] and config.config_login_type == constants.LOGIN_OAUTH:
+        try:
+            from .oauth_bb import oauth_check
+            sso_providers = [{'id': k, 'name': v} for k, v in oauth_check.items()]
+        except ImportError:
+            pass
+    
+    return render_login(sso_providers=sso_providers)   
 
 @web.route('/login', methods=['POST'])
 @limiter.limit("40/day", key_func=lambda: request.form.get('username', "").strip().lower())

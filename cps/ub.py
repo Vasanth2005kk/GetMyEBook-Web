@@ -29,17 +29,19 @@ from binascii import hexlify
 from .cw_login import AnonymousUserMixin, current_user
 from .cw_login import user_logged_in
 
-try:
-    from flask_dance.consumer.backend.sqla import OAuthConsumerMixin
-    oauth_support = True
-except ImportError as e:
-    # fails on flask-dance >1.3, due to renaming
-    try:
-        from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
-        oauth_support = True
-    except ImportError as e:
-        OAuthConsumerMixin = BaseException
-        oauth_support = False
+# try:
+#     from flask_dance.consumer.backend.sqla import OAuthConsumerMixin
+#     oauth_support = True
+# except ImportError as e:
+#     # fails on flask-dance >1.3, due to renaming
+#     try:
+#         from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
+#         oauth_support = True
+#     except ImportError as e:
+#         OAuthConsumerMixin = BaseException
+#         oauth_support = False
+
+
 from sqlalchemy import create_engine, exc, exists, event, text
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON
@@ -64,12 +66,14 @@ Base = declarative_base()
 searched_ids = {}
 
 logged_in = dict()
+oauth_support = True
 
 
 def signal_store_user_session(object, user):
     store_user_session()
 
 
+# In ub.py, ensure store_user_session is called properly
 def store_user_session():
     _user = flask_session.get('_user_id', "")
     _id = flask_session.get('_id', "")
@@ -259,11 +263,48 @@ class User(UserBase, Base):
     kobo_only_shelves_sync = Column(Integer, default=0)
 
 
-if oauth_support:
-    class OAuth(OAuthConsumerMixin, Base):
-        provider_user_id = Column(String(256))
-        user_id = Column(Integer, ForeignKey(User.id))
-        user = relationship(User)
+oauth_support = True
+
+class OAuth(Base):
+    __tablename__ = 'oauth'
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(String(50), nullable=False)
+    provider_user_id = Column(String(256), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id))
+    token = Column(String(1000))  # Store token as JSON string
+    user = relationship(User)
+
+    def __repr__(self):
+        return f'<OAuth {self.provider}:{self.provider_user_id}>'
+
+class SSO_User(Base):
+    """User model for storing Google SSO authenticated users"""
+    
+    __tablename__ = 'sso_users'
+    
+    id = Column(Integer, primary_key=True)
+    google_id = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    picture = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_login = Column(DateTime, default=datetime.datetime.utcnow, nullable=True)
+    
+    def __repr__(self):
+        return f'<User {self.email}>'
+    
+    def to_dict(self):
+        """Convert user object to dictionary"""
+        return {
+            'id': self.id,
+            'google_id': self.google_id,
+            'email': self.email,
+            'name': self.name,
+            'picture': self.picture,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
 
 
 class OAuthProvider(Base):

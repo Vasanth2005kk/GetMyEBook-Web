@@ -64,8 +64,10 @@ feature_support = {
     'updater': constants.UPDATER_AVAILABLE,
     'gmail': bool(services.gmail),
     'scheduler': schedule.use_APScheduler,
-    'gdrive': gdrive_support
+    'gdrive': gdrive_support,
+    'oauth': True  # Always True since we're using Authlib
 }
+
 
 try:
     import rarfile  # pylint: disable=unused-import
@@ -76,11 +78,8 @@ except (ImportError, SyntaxError):
 
 try:
     from .oauth_bb import oauth_check, oauthblueprints
-
-    feature_support['oauth'] = True
 except ImportError as err:
-    log.debug('Cannot import Flask-Dance, login with Oauth will not work: %s', err)
-    feature_support['oauth'] = False
+    log.debug('Cannot import OAuth module: %s', err)
     oauthblueprints = []
     oauth_check = {}
 
@@ -245,6 +244,8 @@ def db_configuration():
 @user_login_required
 @admin_required
 def configuration():
+    log.info(f"full admin Config : {config}")
+    log.info(f"feature_supports : {feature_support}")
     return render_title_template("config_edit.html",
                                  config=config,
                                  provider=oauthblueprints,
@@ -1134,27 +1135,31 @@ def _configuration_gdrive_helper(to_save):
     return gdrive_error
 
 
+# Update the OAuth configuration helper
 def _configuration_oauth_helper(to_save):
-    active_oauths = 0
     reboot_required = False
     for element in oauthblueprints:
-        if to_save["config_" + str(element['id']) + "_oauth_client_id"] != element['oauth_client_id'] \
-          or to_save["config_" + str(element['id']) + "_oauth_client_secret"] != element['oauth_client_secret']:
-            reboot_required = True
-            element['oauth_client_id'] = to_save["config_" + str(element['id']) + "_oauth_client_id"]
-            element['oauth_client_secret'] = to_save["config_" + str(element['id']) + "_oauth_client_secret"]
-        if to_save["config_" + str(element['id']) + "_oauth_client_id"] \
-          and to_save["config_" + str(element['id']) + "_oauth_client_secret"]:
-            active_oauths += 1
-            element["active"] = 1
-        else:
-            element["active"] = 0
-        ub.session.query(ub.OAuthProvider).filter(ub.OAuthProvider.id == element['id']).update(
-            {"oauth_client_id": to_save["config_" + str(element['id']) + "_oauth_client_id"],
-             "oauth_client_secret": to_save["config_" + str(element['id']) + "_oauth_client_secret"],
-             "active": element["active"]})
+        client_id_key = "config_" + str(element['id']) + "_oauth_client_id"
+        client_secret_key = "config_" + str(element['id']) + "_oauth_client_secret"
+        
+        if client_id_key in to_save and client_secret_key in to_save:
+            if (to_save[client_id_key] != element['oauth_client_id'] or 
+                to_save[client_secret_key] != element['oauth_client_secret']):
+                reboot_required = True
+            
+            # Update the provider in database
+            ub.session.query(ub.OAuthProvider).filter(ub.OAuthProvider.id == element['id']).update(
+                {"oauth_client_id": to_save[client_id_key],
+                 "oauth_client_secret": to_save[client_secret_key],
+                 "active": bool(to_save[client_id_key] and to_save[client_secret_key])})
+    
+    ub.session_commit("OAuth configuration updated")
+    
+    # Re-register OAuth clients with new credentials
+    from .oauth_bb import generate_oauth_blueprints
+    generate_oauth_blueprints()
+    
     return reboot_required
-
 
 def _configuration_logfile_helper(to_save):
     reboot_required = False
