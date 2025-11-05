@@ -124,12 +124,15 @@ def generate_state():
     """Generate a secure state token for OAuth"""
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
+    # log.info(f"all sessions : {session}")
     return state
 
 
 def validate_state(state):
     """Validate the state token from OAuth callback"""
+    # log.info(f"1  session datas {session}")
     stored_state = session.pop('oauth_state', None)
+    # log.info(f"2 validate state function resivers session {stored_state} and session datas {session}")
     if stored_state is None:
         log.warning("No stored state found in session")
         return False
@@ -458,7 +461,7 @@ def google_login():
         
         # Generate state and pass it to authorize_redirect
         state = generate_state()
-        log.debug(f"Generated Google state: {state}")
+        log.info(f"Generated Google state: {state}")
         return oauth_client.google.authorize_redirect(redirect_uri, state=state)
     except Exception as e:
         log.error(f"Error in Google login: {e}")
@@ -469,11 +472,12 @@ def google_login():
 @oauth.route('/auth/google/callback')
 def google_callback():
     try:
-        log.debug("Google callback received")
+        log.info("Google callback received")    
+        log.info(f"get all session datas {session}")
         
         # Get state from request args and validate it
         state = request.args.get('state')
-        log.debug(f"Received Google state: {state}")
+        log.info(f"Received Google state: {state}")
         
         if not validate_state(state):
             log.error("CSRF state validation failed for Google")
@@ -485,10 +489,11 @@ def google_callback():
             flash(_('Failed to get authorization token from Google'), 'error')
             return redirect(url_for('web.login'))
         
-        log.debug("Successfully obtained Google access token")
+        log.info("Successfully obtained Google access token")
         
         # Get user info from the token
         user_info = token.get('userinfo')
+        log.info(f"sso user info : {user_info}")
         if not user_info:
             # Fallback: fetch user info from Google API
             log.debug("Fetching user info from Google API")

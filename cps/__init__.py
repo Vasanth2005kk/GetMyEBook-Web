@@ -83,11 +83,12 @@ log = logger.create()
 app = Flask(__name__)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Strict',
+    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SAMESITE='Lax',
     REMEMBER_COOKIE_SAMESITE='Strict',  # will be available in flask-login 0.5.1 earliest
     WTF_CSRF_SSL_STRICT=False
 )
-
+# app.config['DEBUG'] = True #  app config True functionaly enalbled !!
 lm = MyLoginManager()
 
 cli_param = CliParameter()
@@ -175,7 +176,7 @@ def create_app():
     log.info('Starting Calibre Web...')
     Principal(app)
     lm.init_app(app)
-    app.secret_key = os.getenv('SECRET_KEY', config_sql.get_flask_session_key(ub.session))
+    app.secret_key = "32b16bff5353e184291a348b7f0bca7367384247454c79e3030903aacec2b169"#os.getenv('SECRET_KEY', config_sql.get_flask_session_key(ub.session))
 
     web_server.init_app(app, config)
     if hasattr(babel, "localeselector"):

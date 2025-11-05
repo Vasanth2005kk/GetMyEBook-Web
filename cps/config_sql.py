@@ -36,6 +36,8 @@ except ImportError:
 from . import constants, logger
 from .subproc_wrapper import process_wait
 
+from dotenv import load_dotenv
+load_dotenv()
 
 log = logger.create()
 _Base = declarative_base()
