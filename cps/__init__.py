@@ -88,7 +88,7 @@ app.config.update(
     REMEMBER_COOKIE_SAMESITE='Strict',  # will be available in flask-login 0.5.1 earliest
     WTF_CSRF_SSL_STRICT=False
 )
-# app.config['DEBUG'] = True #  app config True functionaly enalbled !!
+app.config['DEBUG'] = True #  app config True functionaly enalbled !!
 lm = MyLoginManager()
 
 cli_param = CliParameter()

@@ -108,16 +108,12 @@ def oauth_update_token(provider_id, token, provider_user_id):
         oauth_entry = query.one()
         # update token
         oauth_entry.token = json.dumps(token)
+        ub.session.add(oauth_entry)
+        ub.session_commit()
+        return True
     except NoResultFound:
-        oauth_entry = ub.OAuth(
-            provider=provider_id,
-            provider_user_id=provider_user_id,
-            token=json.dumps(token),
-        )
-    ub.session.add(oauth_entry)
-    ub.session_commit()
-
-    return True
+        log.debug(f"No existing OAuth entry for provider {provider_id} user {provider_user_id}, skipping insert")
+        return False
 
 
 def generate_state():
@@ -473,7 +469,7 @@ def google_login():
 def google_callback():
     try:
         log.info("Google callback received")    
-        log.info(f"get all session datas {session}")
+        # log.info(f"get all session datas {session}")
         
         # Get state from request args and validate it
         state = request.args.get('state')
@@ -512,9 +508,10 @@ def google_callback():
             flash(_('Invalid user information received from Google'), 'error')
             return redirect(url_for('web.login'))
 
-        log.debug(f"Google user - ID: {google_id}, Email: {email}, Name: {name}")
+        log.info(f"Google user - ID: {google_id}, Email: {email}, Name: {name}")
 
         # Update token and handle SSO login
+        log.info(f"oauthblueprint : {oauthblueprints} <==> google id : {google_id} <==> token { token }")
         oauth_update_token(str(oauthblueprints[1]['id']), token, google_id)
         return handle_sso_login(str(oauthblueprints[1]['id']), google_id, token, user_info, 'Google')
         

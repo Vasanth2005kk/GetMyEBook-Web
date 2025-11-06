@@ -68,7 +68,8 @@ from urllib.parse import quote , unquote
 feature_support = {
     'ldap': bool(services.ldap),
     'goodreads': bool(services.goodreads_support),
-    'kobo': bool(services.kobo)
+    'kobo': bool(services.kobo),
+    'oauth' : True
 }
 
 try:
