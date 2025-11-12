@@ -117,7 +117,7 @@ h2 {
   .main-container {
     display: flex;
     gap: 25px;
-    padding: 15px;
+    /* padding: 15px; */
     height: 100%;
     overflow: auto;
   }
@@ -319,7 +319,7 @@ h2 {
 
     .main-container {
       gap: 15px;
-      padding: 10px;
+      /* padding: 10px; */
     }
 
     .sidebar-navigation {

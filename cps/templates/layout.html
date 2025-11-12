@@ -27,10 +27,10 @@
   </head>
   <body class="{{ page }} {{ bodyClass }}{% if g.current_theme == 1 %} blur{% endif %}" data-text="{{_('Home')}}" data-textback="{{_('Back')}}">
     <!-- Static navbar -->
-    <div class="app-container">
-      <div class="navbar-default navbar-static-top" role="navigation">
+    <div class="app-container" >
+      <div class="navbar-default navbar-static-top"  id="navbar-default-id" role="navigation" >
         <div class="header-nav-style">
-          <div class="logo-sitename-container">
+          <div class="logo-sitename-container" >
             <!-- <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
               <span class="sr-only">{{_('Toggle Navigation')}}</span>
               <span class="icon-bar"></span>
@@ -131,7 +131,7 @@
       </div>
       <div class="main-container">
         {% if current_user.is_authenticated or g.allow_anonymous %}
-        <div class="left-side-container">
+        <div class="left-side-container" id="left-side-container-id">
           <nav class="sidebar-navigation">
             <ul class="list-unstyled" id="scnd-nav" intent in-standard-append="nav.navigation" >
               <!-- <li class="nav-head hidden-xs">{{_('Browse')}}</li> -->

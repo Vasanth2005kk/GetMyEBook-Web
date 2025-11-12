@@ -1,121 +1,106 @@
 {% extends "layout.html" %}
 {% block body %}
-<div class="well col-sm-6 col-sm-offset-2">
-  <h2 style="margin-top: 0">{{_('Login')}}</h2>
-  <form method="POST" role="form">
-    <input type="hidden" name="next" value="{{next_url}}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-group">
-      <label for="username">{{_('Username')}}</label>
-      <input type="text" class="form-control" id="username" name="username" autocapitalize="off"
-        placeholder="{{_('Username')}}" value="{{ username }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='newStyles/css/login-register.css') }}">
+
+<div class="log-container">
+  <div class="left-column">
+    <div class="logo">
+
+      <div class="logo-icon">
+        <img src="{{ url_for('static', filename='newStyles/img/48x48 px.svg') }}" alt="GetMyEbook logo">
+      </div>
+      <span style="color:#FF7373; margin-left: 12px;">GetMy</span>
+      <span style="color:#303AB7;">Ebook</span>
     </div>
-    <div class="form-group">
-      <label for="password">{{_('Password')}}</label>
-      <input type="password" class="form-control" id="password" name="password" placeholder="{{_('Password')}}"
-        value="{{ password }}">
-    </div>
-    <div class="checkbox">
-      <label>
-        <input type="checkbox" name="remember_me" checked> {{_('Remember Me')}}
-      </label>
-    </div>
-    <button type="submit" name="submit" class="btn btn-default">{{_('Login')}}</button>
-    {% if config.config_login_type == 0 and mail%}
-    <button type="submit" name="forgot" value="forgot" class="btn btn-default">{{_('Forgot Password?')}}</button>
-    {% endif %}
-    {% if g.current_theme == 1 %}
-    {% if g.allow_registration %}
-    <a class="btn btn-default" id="register" href="{{url_for('web.register')}}"><span
-        class="glyphicon glyphicon-user"></span> {{_('Register')}}</a>
-    {% endif %}
-    {% if g.allow_anonymous %}
-    <a class="btn btn-default" href="{{url_for('web.index')}}">{{ _('Home') }}</a>
-    {% endif %}
-    {%endif%}
-    {% if config.config_remote_login %}
-    <a href="{{url_for('remotelogin.remote_login')}}" id="remote_login" class="pull-right">{{_('Log in with Magic
-      Link')}}</a>
-    {% endif %}
-    {% if sso_providers %}
-    <div class="row" style="margin-top: 20px;">
-      <div class="col-sm-12">
-        <hr>
-        <h4 style="text-align: center;">{{ _('Single Sign-On') }}</h4>
-        {% for provider in sso_providers %}
-        <div style="margin-bottom: 10px;">
-          <a href="{{ url_for('oauth.' + provider.name + '_login') }}" class="btn btn-default btn-block"
-            style="text-align: center; padding: 10px;">
-            {% if provider.name == 'github' %}
-            <svg height="20" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="20"
-              style="vertical-align: middle; margin-right: 8px;">
-              <path fill-rule="evenodd"
-                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z">
-              </path>
-            </svg>
-            {% elif provider.name == 'google' %}
-            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="20" height="20" viewBox="0 3 48 49"
-              style="vertical-align: middle; margin-right: 8px;">
-              <g id="surface1">
-                <path style=" fill:#FFC107;"
-                  d="M 43.609375 20.082031 L 42 20.082031 L 42 20 L 24 20 L 24 28 L 35.304688 28 C 33.652344 32.65625 29.222656 36 24 36 C 17.371094 36 12 30.628906 12 24 C 12 17.371094 17.371094 12 24 12 C 27.058594 12 29.84375 13.152344 31.960938 15.039063 L 37.617188 9.382813 C 34.046875 6.054688 29.269531 4 24 4 C 12.953125 4 4 12.953125 4 24 C 4 35.046875 12.953125 44 24 44 C 35.046875 44 44 35.046875 44 24 C 44 22.660156 43.863281 21.351563 43.609375 20.082031 Z ">
-                </path>
-                <path style=" fill:#FF3D00;"
-                  d="M 6.304688 14.691406 L 12.878906 19.511719 C 14.65625 15.109375 18.960938 12 24 12 C 27.058594 12 29.84375 13.152344 31.960938 15.039063 L 37.617188 9.382813 C 34.046875 6.054688 29.269531 4 24 4 C 16.316406 4 9.65625 8.335938 6.304688 14.691406 Z ">
-                </path>
-                <path style=" fill:#4CAF50;"
-                  d="M 24 44 C 29.164063 44 33.859375 42.023438 37.410156 38.808594 L 31.21875 33.570313 C 29.210938 35.089844 26.714844 36 24 36 C 18.796875 36 14.382813 32.683594 12.71875 28.054688 L 6.195313 33.078125 C 9.503906 39.554688 16.226563 44 24 44 Z ">
-                </path>
-                <path style=" fill:#1976D2;"
-                  d="M 43.609375 20.082031 L 42 20.082031 L 42 20 L 24 20 L 24 28 L 35.304688 28 C 34.511719 30.238281 33.070313 32.164063 31.214844 33.570313 C 31.21875 33.570313 31.21875 33.570313 31.21875 33.570313 L 37.410156 38.808594 C 36.972656 39.203125 44 34 44 24 C 44 22.660156 43.863281 21.351563 43.609375 20.082031 Z ">
-                </path>
-              </g>
-            </svg>
-            {% endif %}
-            {{ _('Login with') }} {{ provider.name|title }}
+    <div class="form-container">
+      <!-- ========== LOGIN FORM ========== -->
+      <div id="loginForm">
+        <h1>Welcome back</h1>
+        <p class="subtitle">Please enter your details</p>
+
+        <form method="POST" role="form">
+          <input type="hidden" name="next" value="{{next_url}}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group">
+            <label for="login-email">{{_('Username')}}</label>
+            <input type="text" id="login-email" name="username" placeholder="{{_('Username')}}" value="{{ username }}"
+              required>
+          </div>
+
+          <div class="form-group" style="position: relative;">
+            <label for="login-password">{{_('Password')}}</label>
+            <input type="password" id="login-password" name="password" placeholder="{{_('Password')}}"
+              value="{{ password }}" required style="padding-right: 40px;">
+
+            <!-- Eye Icon (Local SVG Image) -->
+            <img id="toggleIcon" src="{{ url_for('static', filename='newStyles/img/eye-on.svg') }}" alt="Show Password"
+              onclick="togglePassword()"
+              style="position: absolute; right: 15px; top: 42px; width: 20px; height: 20px; cursor: pointer; user-select: none;">
+          </div>
+
+          <div class="form-options">
+            <div class="checkbox-group">
+              <input type="checkbox" id="remember" name="remember_me" checked>
+              <label for="remember" class="checkbox-label">{{_('Remember Me')}}</label>
+            </div>
+            <a href="#" class="forgot-link">Forgot password</a>
+          </div>
+
+          <button type="submit" name="submit" class="btn-primary">{{_('Login')}}</button>
+          <a href="{{url_for('oauth.google_login')}}" style="text-decoration: none;">
+
+            <button type="button" class="btn-secondary" >
+              <svg class="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Sign in with Google
+            </button>
           </a>
-        </div>
-        {% endfor %}
+          <p class="footer-text">
+            Don't have an account?
+            <a href="/register" class="footer-link">Sign up</a>
+          </p>
+        </form>
       </div>
     </div>
-    {% elif config.config_login_type == 2 %}
-    {% if 1 in oauth_check %}
-    <a href="{{url_for('oauth.github_login')}}" class="pull-right github" style="margin-left: 10px;">
-      <svg height="32" class="octicon octicon-mark-github" viewBox="0 0 16 16" version="1.1" width="32"
-        aria-hidden="true">
-        <path fill-rule="evenodd"
-          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z">
-        </path>
-      </svg>
-    </a>
-    {% endif %}
-    {% if 2 in oauth_check %}
-    <a href="{{url_for('oauth.google_login')}}" class="pull-right google">
-      <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="40" height="40" viewBox="0 3 48 49"
-        style="fill:#000000;">
-        <g id="surface1">
-          <path style=" fill:#FFC107;"
-            d="M 43.609375 20.082031 L 42 20.082031 L 42 20 L 24 20 L 24 28 L 35.304688 28 C 33.652344 32.65625 29.222656 36 24 36 C 17.371094 36 12 30.628906 12 24 C 12 17.371094 17.371094 12 24 12 C 27.058594 12 29.84375 13.152344 31.960938 15.039063 L 37.617188 9.382813 C 34.046875 6.054688 29.269531 4 24 4 C 12.953125 4 4 12.953125 4 24 C 4 35.046875 12.953125 44 24 44 C 35.046875 44 44 35.046875 44 24 C 44 22.660156 43.863281 21.351563 43.609375 20.082031 Z ">
-          </path>
-          <path style=" fill:#FF3D00;"
-            d="M 6.304688 14.691406 L 12.878906 19.511719 C 14.65625 15.109375 18.960938 12 24 12 C 27.058594 12 29.84375 13.152344 31.960938 15.039063 L 37.617188 9.382813 C 34.046875 6.054688 29.269531 4 24 4 C 16.316406 4 9.65625 8.335938 6.304688 14.691406 Z ">
-          </path>
-          <path style=" fill:#4CAF50;"
-            d="M 24 44 C 29.164063 44 33.859375 42.023438 37.410156 38.808594 L 31.21875 33.570313 C 29.210938 35.089844 26.714844 36 24 36 C 18.796875 36 14.382813 32.683594 12.71875 28.054688 L 6.195313 33.078125 C 9.503906 39.554688 16.226563 44 24 44 Z ">
-          </path>
-          <path style=" fill:#1976D2;"
-            d="M 43.609375 20.082031 L 42 20.082031 L 42 20 L 24 20 L 24 28 L 35.304688 28 C 34.511719 30.238281 33.070313 32.164063 31.214844 33.570313 C 31.21875 33.570313 31.21875 33.570313 31.21875 33.570313 L 37.410156 38.808594 C 36.972656 39.203125 44 34 44 24 C 44 22.660156 43.863281 21.351563 43.609375 20.082031 Z ">
-          </path>
-        </g>
-      </svg>
-    </a>
-    {% endif %}
-    {% endif %}
-  </form>
+  </div>
+  <!-- ========== RIGHT COLUMN ========== -->
+  <div class="right-column">
+
+  </div>
 </div>
 {% if error %}
 <div class="col-sm-6 col-sm-offset-2">
   <div class="alert alert-danger">{{error}}</div>
 </div>
 {% endif %}
+
+<script>
+  const navbarDefault = document.getElementById("navbar-default-id");
+  navbarDefault.style.display = "none";
+  const saidBar = document.getElementById("left-side-container-id");
+  saidBar.style.display = "none";
+
+  function togglePassword() {
+    const password = document.getElementById("login-password");
+    const icon = document.getElementById("toggleIcon");
+
+    if (password.type === "password") {
+      password.type = "text";
+      icon.src = "{{ url_for('static', filename='newStyles/img/eye-off.svg') }}"  // 👁️‍🗨️ eye-closed image
+      icon.alt = "Hide Password";
+    } else {
+      password.type = "password";
+      icon.src = "{{ url_for('static', filename='newStyles/img/eye-on.svg') }}"      // 👁️ open-eye image
+      icon.alt = "Show Password";
+    }
+  }
+</script>
 {% endblock %}
