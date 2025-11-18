@@ -45,7 +45,7 @@ from flask_babel import gettext as _
 from flask_babel import get_locale
 from flask import flash
 
-from . import logger, ub, isoLanguages
+from . import logger, ub, isoLanguages,create_metadata_psql
 from .pagination import Pagination
 
 
@@ -623,6 +623,8 @@ class CalibreDB:
             
             import urllib.parse
             encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+
+            create_metadata_psql.migrate_sqlite_to_postgres(SQLITE_PATH=config_calibre_dir)
 
             DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
             test_engine = create_engine(DATABASE_URL, echo=False)
