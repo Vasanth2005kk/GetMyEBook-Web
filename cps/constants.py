@@ -73,7 +73,7 @@ POSTGRESQL_ENV_VARS = {
     'DB_HOST': os.getenv("DB_HOST"),
     'DB_PORT': os.getenv("DB_PORT"),
     'DATABASENAME_APP': os.getenv("DATABASENAME_APP"),
-    'DATABASENAME_CALIBRE': os.getenv("DATABASENAME_CALIBRE")
+    'DATABASENAME_APP': os.getenv("DATABASENAME_APP")
 }
 
 # Check if PostgreSQL configuration is complete
@@ -223,7 +223,7 @@ def get_postgresql_connection_url(db_type='app'):
     if db_type == 'app':
         database = POSTGRESQL_ENV_VARS['DATABASENAME_APP']
     else:
-        database = POSTGRESQL_ENV_VARS['DATABASENAME_CALIBRE']
+        database = POSTGRESQL_ENV_VARS['DATABASENAME_APP']
     
     # Properly encode password for URL (handle special characters)
     from urllib.parse import quote_plus

@@ -615,7 +615,7 @@ class CalibreDB:
             DB_PASSWORD = os.getenv("DB_PASSWORD")
             DB_HOST = os.getenv("DB_HOST")
             DB_PORT = os.getenv("DB_PORT")
-            DB_NAME = os.getenv("DATABASENAME_CALIBRE")
+            DB_NAME = os.getenv("DATABASENAME_APP")
             
             if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
                 log.error("Missing PostgreSQL environment variables")
@@ -642,8 +642,10 @@ class CalibreDB:
             return False, False
 
     @classmethod
-    def update_config(cls, config):
+    def update_config(cls, config,config_calibre_dir,app_db_path):
         cls.config = config
+        cls.config_calibre_dir = config_calibre_dir
+        cls.app_db_path = app_db_path
 
     @classmethod
     def setup_db(cls, config_calibre_dir, app_db_path):
@@ -662,7 +664,7 @@ class CalibreDB:
             DB_PASSWORD = os.getenv("DB_PASSWORD")
             DB_HOST = os.getenv("DB_HOST")
             DB_PORT = os.getenv("DB_PORT")
-            DB_NAME = os.getenv("DATABASENAME_CALIBRE")
+            DB_NAME = os.getenv("DATABASENAME_APP")
             
             if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
                 log.error("Missing required PostgreSQL environment variables")
@@ -855,6 +857,11 @@ class CalibreDB:
                                            join_archive_read, config_read_column, *join):
         pagesize = pagesize or self.config.config_books_per_page
         if current_user.show_detail_random():
+            log.info(f"fill_indexpage_with_archived_books all aguments: page={page}, pagesize={pagesize}, "
+                     f"database={database}, db_filter={db_filter}, order={order}, "
+                     f"allow_show_archived={allow_show_archived}, join_archive_read={join_archive_read}, "
+                     f"config_read_column={config_read_column}, join={join}")
+            
             random_query = self.generate_linked_query(config_read_column, database)
             randm = (random_query.filter(self.common_filters(allow_show_archived))
                      .order_by(func.random())

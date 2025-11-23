@@ -2107,7 +2107,7 @@ def _log_postgresql_config_status():
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT")
     db_name_app = os.getenv("DATABASENAME_APP")
-    db_name_calibre = os.getenv("DATABASENAME_CALIBRE")
+    db_name_calibre = os.getenv("DATABASENAME_APP")
     
     if all([db_user, db_host, db_port, db_name_app, db_name_calibre]):
         log.info("PostgreSQL configuration detected via environment variables")
@@ -2122,7 +2122,7 @@ def _log_postgresql_config_status():
         if not db_host: missing_vars.append("DB_HOST")
         if not db_port: missing_vars.append("DB_PORT")
         if not db_name_app: missing_vars.append("DATABASENAME_APP")
-        if not db_name_calibre: missing_vars.append("DATABASENAME_CALIBRE")
+        if not db_name_calibre: missing_vars.append("DATABASENAME_APP")
         log.warning(f"Missing environment variables: {', '.join(missing_vars)}")
 
 def _handle_new_user(to_save, content, languages, translations, kobo_support):

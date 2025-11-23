@@ -29,18 +29,43 @@ DB_NAME     = os.getenv("DATABASENAME_CALIBRE", "metadatadb")
 def ensure_pgloader_installed():
     try:
         subprocess.run(["pgloader", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        log.info("✔ pgloader already installed.")
+        log.info(f"✔ pgloader already installed.")
     except FileNotFoundError:
-        log.info("⚠ pgloader not found. Installing...")
+        log.info(f"⚠ pgloader not found. Installing...")
         subprocess.run(["sudo", "apt-get", "update", "-y"])
         subprocess.run(["sudo", "apt-get", "install", "-y", "pgloader"])
-        log.info("✔ pgloader installed successfully.")
+        log.info(f"✔ pgloader installed successfully.")
 
 
 # ---------------------------
 # Complete migration workflow
 # ---------------------------
 def migrate_sqlite_to_postgres(SQLITE_PATH):
+
+    # Check if database exists and if tables are empty
+    encoded_pw = urllib.parse.quote_plus(DB_PASSWORD)
+    POSTGRES_DB_URL = f"postgresql+psycopg2://{DB_USER}:{encoded_pw}@{DB_HOST}:{DB_PORT}/{DB_NAME.lower()}"
+
+    db_engine = create_engine(POSTGRES_DB_URL)
+    with db_engine.connect() as conn:
+        tables = conn.execute(
+            text("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")
+        ).fetchall()
+        if tables:
+            # Check if all tables are empty
+            non_empty = False
+            for (table_name,) in tables:
+                count = conn.execute(text(f"SELECT COUNT(*) FROM \"{table_name}\";")).scalar()
+                if count > 0:
+                    non_empty = True
+                    break
+            if non_empty:
+                log.info(f"✔ Database '{DB_NAME}' already has data. Migration will not run.")
+                return
+            else:
+                log.info(f"✔ Database '{DB_NAME}' tables are empty. Proceeding with migration.")
+        else:
+            log.info(f"✔ Database '{DB_NAME}' has no tables. Proceeding with migration.")
     ensure_pgloader_installed()
 
     # Password encoding for URL
@@ -49,8 +74,8 @@ def migrate_sqlite_to_postgres(SQLITE_PATH):
     POSTGRES_ADMIN_URL = f"postgresql+psycopg2://{DB_USER}:{encoded_pw}@{DB_HOST}:{DB_PORT}/postgres"
     TARGET_PGLOADER_URL = f"postgresql://{DB_USER}:{encoded_pw}@{DB_HOST}:{DB_PORT}/{DB_NAME.lower()}"
 
-    log.info("\nPostgreSQL Admin URL =", POSTGRES_ADMIN_URL)
-    log.info("pgloader Target URL   =", TARGET_PGLOADER_URL)
+    log.info(f"PostgreSQL Admin URL = { POSTGRES_ADMIN_URL}")
+    log.info(f"pgloader Target URL   = { TARGET_PGLOADER_URL}")
 
     # Create database
     engine = create_engine(POSTGRES_ADMIN_URL, isolation_level="AUTOCOMMIT")
@@ -59,11 +84,15 @@ def migrate_sqlite_to_postgres(SQLITE_PATH):
         with engine.connect() as conn:
             conn.execute(text(f"CREATE DATABASE {DB_NAME};"))
             log.info(f"✔ Database '{DB_NAME}' created.")
-    except ProgrammingError:
-        log.info(f"✔ Database '{DB_NAME}' already exists.")
+    except ProgrammingError as e:
+        if 'already exists' in str(e):
+            log.info(f"✔ Database '{DB_NAME}' already exists. Proceeding with migration.")
+        else:
+            log.error(f"⚠ Error creating database: {e}")
+            return
 
     # Run pgloader
-    log.info("\nRunning migration using pgloader...\n")
+    log.info(f"\nRunning migration using pgloader...\n")
 
     command = [
         "pgloader",
@@ -73,10 +102,15 @@ def migrate_sqlite_to_postgres(SQLITE_PATH):
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    log.info("=========== PGLOADER OUTPUT ===========")
-    log.info(result.stdout)
-    log.info("=========== PGLOADER ERRORS ===========")
-    log.info(result.stderr)
+    log.info(f"=========== PGLOADER OUTPUT ===========")
+    log.info(f"{result.stdout}")
+    log.info(f"=========== PGLOADER ERRORS ===========")
+    log.info(f"{result.stderr}")
+    if result.returncode != 0:
+        log.error(f"⚠ pgloader failed with return code {result.returncode}.")
+        return
+
+    log.info(f"✔ Migration completed successfully.")
 
 
 # ---------------------------
