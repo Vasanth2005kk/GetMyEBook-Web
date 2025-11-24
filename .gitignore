@@ -35,7 +35,6 @@ gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
-<<<<<<< HEAD
 library
 ui-chacking
 .env
