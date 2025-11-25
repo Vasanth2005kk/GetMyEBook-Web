@@ -5,9 +5,9 @@ The last few months, maintaining Calibre-Web has felt more like work than a hobb
 I have turned off all notifications from Github/Discord and will now concentrate undisturbed on the development of “my” Calibre-Web over the next few weeks/months.  
 I will look into the issues and maybe also the PRs from time to time, but don't expect a quick response from me.
 
-# Calibre-Web
+# GetMyEBook-Web (Calibre-Web based application)
 
-Calibre-Web is a web app that offers a clean and intuitive interface for browsing, reading, and downloading eBooks using a valid [Calibre](https://calibre-ebook.com) database.
+GetMyEBook-Web is a web app based on Calibre-Web that offers a clean and intuitive interface for browsing, reading, and downloading eBooks using a valid [Calibre](https://calibre-ebook.com) database.
 
 [![License](https://img.shields.io/github/license/janeczku/calibre-web?style=flat-square)](https://github.com/janeczku/calibre-web/blob/master/LICENSE)
 ![Commit Activity](https://img.shields.io/github/commit-activity/w/janeczku/calibre-web?logo=github&style=flat-square&label=commits)
@@ -19,7 +19,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 <details>
 <summary><strong>Table of Contents</strong> (click to expand)</summary>
 
-1. [About](#calibre-web)
+1. [About](#getmyebook-web-calibre-web-based-application)
 2. [Features](#features)
 3. [Installation](#installation)
    - [Installation via pip (recommended)](#installation-via-pip-recommended)
@@ -64,6 +64,22 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 ## Installation
 
+#### Automated Setup (Recommended for GetMyEBook-Web)
+
+**GetMyEBook-Web now features a one-command automated setup!**
+
+1. Clone the repository and navigate to the directory
+2. Run the application:
+   ```bash
+   uv run cps.py
+   ```
+3. Follow the interactive setup wizard to configure your database
+4. The application will automatically start after configuration
+
+For detailed setup instructions, troubleshooting, and advanced configuration, see **[SETUP_GUIDE.md](SETUP_GUIDE.md)**.
+
+---
+
 #### Installation via pip (recommended)
 1. Create a virtual environment for Calibre-Web to avoid conflicts with existing Python dependencies
 2. Install Calibre-Web via pip: `pip install calibreweb` (or `pip3` depending on your OS/distro)
@@ -90,6 +106,7 @@ Refer to the Wiki for additional installation examples: [manual installation](ht
 ## Requirements
 
 - Python 3.7+
+- PostgreSQL 12+ (for GetMyEBook-Web)
 - [Imagemagick](https://imagemagick.org/script/download.php) for cover extraction from EPUBs (Windows users may need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction)
 - Windows users need to install [libmagic for 32bit python](https://gnuwin32.sourceforge.net/downlinks/file.php) or [libmagic for 64bit python](https://github.com/nscaife/file-windows/releases/tag/20170108), depending on the python version; The files need to be installed in path (e.g. script folder of your Calibre-Web venv, or in the root folder of Calibre-Web
 - Optional: [Calibre desktop program](https://calibre-ebook.com/download) for on-the-fly conversion and metadata editing (set "calibre's converter tool" path on the setup page)

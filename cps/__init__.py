@@ -242,7 +242,17 @@ def init_postgresql():
     """Initialize PostgreSQL database connection"""
     try:
         from dotenv import load_dotenv
-        load_dotenv('/home/vasanth/GetMyEBook-Web/.env')
+        from .utils import get_env_path
+        
+        # Load .env from project root dynamically
+        env_path = get_env_path()
+        
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            log.info(f"Loaded environment variables from: {env_path}")
+        else:
+            log.warning(f".env file not found at {env_path}")
+            log.warning("Database configuration may be incomplete")
         
         # Get database URL from environment variables first
         database_url = os.environ.get('DATABASE_URL')
@@ -254,6 +264,12 @@ def init_postgresql():
             db_name = os.environ.get('DATABASENAME_APP')
             db_user = os.environ.get('DB_USERNAME')
             db_password = os.environ.get('DB_PASSWORD')
+            
+            if not all([db_name, db_user, db_password]):
+                log.error("Missing required database environment variables")
+                log.error("Please ensure DB_USERNAME, DB_PASSWORD, and DATABASENAME_APP are set")
+                return None, None
+            
             # Properly encode the password for URL
             import urllib.parse
             encoded_password = urllib.parse.quote_plus(db_password)
@@ -284,6 +300,7 @@ def init_postgresql():
     except Exception as e:
         log.error(f"Failed to initialize PostgreSQL: {e}")
         return None, None
+
 
 
 

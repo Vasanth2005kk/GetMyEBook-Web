@@ -162,13 +162,30 @@ class CliParameter(object):
     def _log_postgresql_config(self):
         """Log PostgreSQL configuration status"""
         from dotenv import load_dotenv
-        load_dotenv('/home/vasanth/GetMyEBook-Web/.env')
+        import sys
+        import os
+        
+        # Import get_env_path from utils
+        # We need to be careful here since this runs early in initialization
+        try:
+            from .utils import get_env_path
+            env_path = get_env_path()
+        except ImportError:
+            # Fallback if utils not available yet
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env_path = os.path.join(project_root, '.env')
+        
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            log.info(f"Loading PostgreSQL configuration from: {env_path}")
+        else:
+            log.warning(f".env file not found at: {env_path}")
         
         db_user = os.getenv("DB_USERNAME")
         db_host = os.getenv("DB_HOST")
         db_port = os.getenv("DB_PORT")
         db_name_app = os.getenv("DATABASENAME_APP")
-        db_name_calibre = os.getenv("DATABASENAME_APP")
+        db_name_calibre = os.getenv("DATABASENAME_CALIBRE")
         
         if all([db_user, db_host, db_port, db_name_app, db_name_calibre]):
             log.info("PostgreSQL configuration detected via environment variables")
@@ -182,5 +199,5 @@ class CliParameter(object):
             if not db_host: missing_vars.append("DB_HOST")
             if not db_port: missing_vars.append("DB_PORT")
             if not db_name_app: missing_vars.append("DATABASENAME_APP")
-            if not db_name_calibre: missing_vars.append("DATABASENAME_APP")
+            if not db_name_calibre: missing_vars.append("DATABASENAME_CALIBRE")
             log.warning(f"Missing environment variables: {', '.join(missing_vars)}")
