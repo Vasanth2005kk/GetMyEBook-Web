@@ -671,8 +671,9 @@ def create_admin_user(_session):
 def init_db_thread():
     global app_DB_path
     # PostgreSQL connection
-    # DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD.replace("@","%40")}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     engine = create_engine(
         DATABASE_URL,
@@ -693,8 +694,9 @@ def init_db(app_db_path=None):
     app_DB_path = app_db_path
     
     # PostgreSQL connection
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD.replace("@","%40")}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    # DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     engine = create_engine(
         DATABASE_URL,
@@ -747,8 +749,9 @@ def password_change(user_credentials=None):
             sys.exit(3)
 
 def get_new_session_instance():
-    # DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD.replace("@","%40")}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     new_engine = create_engine(
         DATABASE_URL,
