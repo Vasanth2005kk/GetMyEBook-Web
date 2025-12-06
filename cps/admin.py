@@ -112,6 +112,9 @@ def before_request():
                                  'web.login',
                                  'web.login_post',
                                  'web.logout',
+                                 'auth.login',
+                                 'auth.register',
+                                 'auth.logout',
                                  'admin.load_dialogtexts',
                                  'admin.ajax_pathchooser'):
         return redirect(url_for('admin.db_configuration'))

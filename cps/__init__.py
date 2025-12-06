@@ -214,7 +214,7 @@ def create_app():
         app.register_blueprint(blueprints['threads'], url_prefix='/forum/threads')
         app.register_blueprint(blueprints['comments'], url_prefix='/forum/api')
         app.register_blueprint(blueprints['settings'], url_prefix='/forum/settings')
-        app.register_blueprint(blueprints['auth'])  # Auth routes at root level
+        app.register_blueprint(blueprints['auth'], url_prefix='/forum')  # Auth routes at /forum level
         
         log.info("✅ Forum module initialized successfully")
         log.info("✅ Forum blueprints registered: /forum, /forum/threads, /forum/api, /forum/settings")

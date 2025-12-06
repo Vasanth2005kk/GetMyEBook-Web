@@ -34,4 +34,4 @@ class User(Base, UserMixin):
 
     @property
     def profile_picture(self):
-        return url_for('static', filename="images/avatars/" + self.avatar)
+        return url_for('static', filename="forum/images/avatars/" + self.avatar)
