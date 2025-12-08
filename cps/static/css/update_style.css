@@ -82,10 +82,16 @@ h2 {
     align-items: center;
   }
 
-  .header-nav-style {
+  .header-nav-style { 
     display: grid;
-    grid-template-columns: min-content 1fr min-content;
-    padding: 5px 10px
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 15px 20px;
+    column-gap: 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #e6e6e6;
+    box-sizing: border-box;
+    min-height: 70px;
   }
 
   .search-form {
@@ -265,7 +271,7 @@ h2 {
   }
 
   .app-container {
-      height: 100dvh;
+      height: 100vh;
       display: grid;
       grid-template-rows: min-content 1fr;
       overflow: auto;
@@ -319,7 +325,7 @@ h2 {
 
     .main-container {
       gap: 15px;
-      /* padding: 10px; */
+      padding: 10px;
     }
 
     .sidebar-navigation {

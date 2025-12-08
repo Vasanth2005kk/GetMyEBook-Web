@@ -1031,9 +1031,23 @@ def _config_int(to_save, x, func=int):
     return config.set_from_dictionary(to_save, x, func)
 
 def _config_checkbox(to_save, x):
+    # Explicitly handle unchecked checkboxes (not present in form data)
+    if x not in to_save:
+        # Checkbox is unchecked, set to False
+        if hasattr(config, x):
+            setattr(config, x, False)
+            return True
+        return False
     return config.set_from_dictionary(to_save, x, lambda y: y == "on", False)
 
 def _config_checkbox_int(to_save, x):
+    # Explicitly handle unchecked checkboxes (not present in form data)
+    if x not in to_save:
+        # Checkbox is unchecked, set to 0
+        if hasattr(config, x):
+            setattr(config, x, 0)
+            return True
+        return False
     return config.set_from_dictionary(to_save, x, lambda y: 1 if (y == "on") else 0, 0)
 
 def _config_string(to_save, x):
@@ -1223,6 +1237,7 @@ def edit_mailsettings():
 @admin_required
 def update_mailsettings():
     to_save = request.form.to_dict()
+    log.info("Updating Mail Settings with data: {}".format(to_save))
     _config_int(to_save, "mail_server_type")
     if to_save.get("invalidate"):
         config.mail_gmail_token = {}
@@ -1250,13 +1265,19 @@ def update_mailsettings():
         config.mail_login = to_save.get('mail_login', "").strip()
     try:
         config.save()
+        # Explicitly reload config to ensure we have the latest data
+        config.load()
+        log.info("Mail settings saved successfully")
     except (OperationalError, InvalidRequestError) as e:
         ub.session.rollback()
         log.error_or_exception("Settings Database error: {}".format(e))
-        flash(_("Oops! Database Error: %(error)s.", error=e.orig), category="error")
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        flash(_("Oops! Database Error: %(error)s.", error=error_msg), category="error")
         return edit_mailsettings()
     except Exception as e:
-        flash(_("Oops! Database Error: %(error)s.", error=e.orig), category="error")
+        log.error_or_exception("Unexpected error saving mail settings: {}".format(e))
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        flash(_("Oops! Database Error: %(error)s.", error=error_msg), category="error")
         return edit_mailsettings()
 
     if to_save.get("test"):
@@ -2049,9 +2070,14 @@ def _configuration_update_helper():
     except (OperationalError, InvalidRequestError) as e:
         ub.session.rollback()
         log.error_or_exception("Settings Database error: {}".format(e))
-        _configuration_result(_("Oops! Database Error: %(error)s.", error=e.orig))
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        return _configuration_result(_("Oops! Database Error: %(error)s.", error=error_msg))
 
     config.save()
+    # Explicitly reload config to ensure we have the latest data
+    config.load()
+    log.info("Configuration saved successfully")
+    
     if reboot_required:
         web_server.stop(True)
 

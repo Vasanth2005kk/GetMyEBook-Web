@@ -100,8 +100,8 @@ class _Settings(_Base):
     config_access_logfile = Column(String, default=logger.DEFAULT_ACCESS_LOG)
 
     config_uploading = Column(SmallInteger, default=0)
-    config_anonbrowse = Column(SmallInteger, default=0)
-    config_public_reg = Column(SmallInteger, default=0)
+    config_anonbrowse = Column(SmallInteger, default=1)
+    config_public_reg = Column(SmallInteger, default=1)
     config_remote_login = Column(Boolean, default=False)
     config_kobo_sync = Column(Boolean, default=False)
 
@@ -123,8 +123,8 @@ class _Settings(_Base):
 
     config_use_goodreads = Column(Boolean, default=False)
     config_goodreads_api_key = Column(String)
-    config_register_email = Column(Boolean, default=False)
-    config_login_type = Column(Integer, default=0)
+    config_register_email = Column(Boolean, default=True)
+    config_login_type = Column(Integer, default=2)
 
     config_kobo_proxy = Column(Boolean, default=False)
 
@@ -423,11 +423,20 @@ class ConfigSQL(object):
     def save(self):
         """Apply all configuration values to the underlying storage."""
         s = self._read_from_storage()  # type: _Settings
+        
+        # Ensure the object is attached to the session to avoid DetachedInstanceError
+        if s not in self._session:
+            s = self._session.merge(s)
+        
+        # Refresh the object to ensure it's up-to-date and bound to the session
+        self._session.refresh(s)
 
         for k in self.dirty:
             if k[0] == '_':
                 continue
-            if hasattr(s, k):
+            # Use the class definition to check for attribute existence
+            # instead of hasattr() which triggers lazy loading
+            if k in _Settings.__dict__ or hasattr(_Settings, k):
                 if k.endswith("_e"):
                     setattr(s, k, self._fernet.encrypt(self.__dict__[k].encode()))
                 else:

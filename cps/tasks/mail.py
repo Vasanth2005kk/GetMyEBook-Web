@@ -198,6 +198,15 @@ class TaskEmail(CalibreTask):
     def send_standard_email(self, msg):
         use_ssl = int(self.settings.get('mail_use_ssl', 0))
         timeout = 600  # set timeout to 5mins
+        
+        # Validate mail server configuration
+        mail_server = self.settings.get("mail_server", "").strip()
+        if not mail_server or mail_server in ["mail.example.org", "mail.example.com", "localhost"]:
+            raise Exception(
+                "Email server is not configured properly. "
+                "Please configure a valid SMTP server in Admin → Email Server Settings. "
+                "Current server: '{}'".format(mail_server)
+            )
 
         # on python3 debugoutput is caught with overwritten _print_debug function
         log.debug("Start sending e-mail")
