@@ -246,14 +246,29 @@ class User(UserBase, Base):
     remote_auth_token = relationship('RemoteAuthToken', backref='user', lazy='dynamic')
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
+    
+    # Forum-related columns
+    forum_avatar = Column(String(150), default="avatar.png")
+    forum_email_verified_at = Column(DateTime, nullable=True, default=None)
+    
+    # Forum relationships (will be added when we update forum models)
+    # threads = relationship("Thread", back_populates="owner")
+    # comments = relationship("Comment", back_populates="owner")
+
+    @property
+    def profile_picture(self):
+        """Return forum avatar URL"""
+        from flask import url_for
+        return url_for('static', filename="forum/images/avatars/" + self.forum_avatar)
 
     def json_attributes(self):
+        """Return JSON-serializable attributes for JavaScript (forum-compatible)"""
         return {
             "id": self.id,
-            "username": self.name,
+            "name": self.name,
             "email": self.email,
-            "avatar": None,
-            "role": self.role
+            "profilePicture": self.profile_picture,
+            "email_verified": self.forum_email_verified_at is not None
         }
 
 oauth_support = True

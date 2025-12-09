@@ -208,13 +208,13 @@ def create_app():
         from cps.forum import init_forum_extensions, get_forum_blueprints
         init_forum_extensions(app)
         
-        # Register forum blueprints
+        # Register forum blueprints (excluding auth - using GetMyEBook login instead)
         blueprints = get_forum_blueprints()
         app.register_blueprint(blueprints['main'], url_prefix='/forum')
         app.register_blueprint(blueprints['threads'], url_prefix='/forum/threads')
         app.register_blueprint(blueprints['comments'], url_prefix='/forum/api')
         app.register_blueprint(blueprints['settings'], url_prefix='/forum/settings')
-        app.register_blueprint(blueprints['auth'], url_prefix='/forum')  # Auth routes at /forum level
+        # Auth blueprint removed - forum uses GetMyEBook SSO login via auth_bridge
         
         log.info("✅ Forum module initialized successfully")
         log.info("✅ Forum blueprints registered: /forum, /forum/threads, /forum/api, /forum/settings")

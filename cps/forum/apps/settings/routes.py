@@ -3,11 +3,12 @@ from flask import render_template, url_for, redirect, Blueprint, request, flash,
 from flask_login import login_required, current_user
 from .form import AccountForm, ChangePasswordForm
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 from flask import current_app as app
 from cps.forum.src.utilities.functions import generate_random_str
 from cps.forum.src.decorators.email_verified import email_verified
 from cps.forum.src.mails.registration_mail import send_validation_email
-from cps.forum import bcrypt
+from cps import ub
 
 
 settings_blueprint = Blueprint("settings", __name__, template_folder="templates")
@@ -21,19 +22,26 @@ def index():
     if account_form.validate_on_submit():
         email_changed = account_form.email.data != current_user.email
 
-        current_user.update({
-            "name": account_form.name.data,
-            "email": account_form.email.data,
-            "email_verified_at": None if email_changed else current_user.email_verified_at,
-            "confirmation_token": generate_random_str(40) if email_changed else None
-        })
-
-        flash("Votre compte a été mis à jour avec succès", "success")
+        # Update user attributes directly
+        current_user.name = account_form.name.data
+        current_user.email = account_form.email.data
         
         if email_changed:
-            flash("Your account has been disabled, you must validate your email", "warning")
-
-            send_validation_email(current_user)
+            current_user.forum_email_verified_at = None
+            # Main User model doesn't have confirmation_token, skipping for now
+            # current_user.confirmation_token = generate_random_str(40)
+        
+        try:
+            ub.session.commit()
+            flash("Your account has been updated successfully", "success")
+            
+            if email_changed:
+                flash("Your email has been changed. Please note: verification email is not yet implemented for the unified user system.", "warning")
+                # send_validation_email(current_user)
+                
+        except Exception as e:
+            ub.session.rollback()
+            flash(f"Error updating account: {e}", "danger")
 
         return redirect(url_for("settings.index"))
 
@@ -50,11 +58,15 @@ def password():
     password_form = ChangePasswordForm()
 
     if password_form.validate_on_submit():
-        current_user.update({
-            "password": bcrypt.generate_password_hash(password_form.new_password.data)
-        })
-
-        flash("Your password has been changed successfully", "success")
+        # Update password using werkzeug's generate_password_hash to match main app
+        current_user.password = generate_password_hash(password_form.new_password.data)
+        
+        try:
+            ub.session.commit()
+            flash("Your password has been changed successfully", "success")
+        except Exception as e:
+            ub.session.rollback()
+            flash(f"Error changing password: {e}", "danger")
 
         return redirect(url_for("settings.password"))
 
@@ -87,9 +99,16 @@ def avatar():
     avatar_name = generate_random_str(20) + '.' + extension.lower()
     avatar_file.save(os.path.join(app.config['AVATAR_FOLDER'], avatar_name))
 
-    current_user.update({ "avatar": avatar_name })
-
-    return jsonify({
-        "avatar":  current_user.profile_picture
-    })
+    # Update forum_avatar column
+    current_user.forum_avatar = avatar_name
+    
+    try:
+        ub.session.commit()
+        
+        return jsonify({
+            "avatar":  current_user.profile_picture
+        })
+    except Exception as e:
+        ub.session.rollback()
+        return _error_response(f"Database error: {e}", 500)
 

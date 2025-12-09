@@ -39,18 +39,17 @@
             Settings
           </a>
           <div class="dropdown-divider"></div>
-          <!-- <form method="POST" action="{{ url_for("auth.logout") }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-white" type="submit">Logout</button>
-          </form> -->
+          {# Logout removed - users logout via GetMyEBook main interface
+          <form method="POST" action="{{ url_for(" auth.logout") }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-white" type="submit">Logout</button>
+          </form>
+          #}
         </div>
       </li>
       {% else %}
       <li class="nav-item pr-2">
-        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+        <a class="nav-link" href="{{ url_for('web.login') }}">Login</a>
       </li>
       {% endif %}
     </ul>

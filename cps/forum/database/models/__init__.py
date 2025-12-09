@@ -38,7 +38,8 @@ class Base(db.Model):
 
 
 
-from .user import User
+# User is loaded dynamically via properties in Thread and Comment models
+# This avoids SQLAlchemy relationship issues across different db instances
 from .category import Category
 from .thread import Thread
 from .comment import Comment

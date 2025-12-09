@@ -130,7 +130,7 @@ change_confirm_modal %}
               {% endif %}
               {% if not current_user.is_anonymous and not simple%}
               <li class="top_tasks">
-                <a href="{{ url_for('main.index') }}" role="button">
+                <a href="/forum" role="button">
                   <span class="glyphicon glyphicon-comment"></span> {{ _('Community Forum') }}
                 </a>
               </li>

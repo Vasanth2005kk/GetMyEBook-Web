@@ -13,22 +13,30 @@ class Thread(Base):
     title = db.Column(db.String(100), nullable=False)
     slug = db.Column(db.String(250), nullable=False)
     content = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey("forum_users.id"))
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))  # Changed from forum_users to users
     category_id = db.Column(db.Integer, db.ForeignKey("forum_categories.id"))
     views_count = db.Column(db.Integer, nullable=False, default=0)
     comments_count = db.Column(db.Integer, default=0)
     best_comment_id = db.Column(db.Integer, nullable=True)
 
-    owner = db.relationship("User", back_populates="threads")
+    # Relationships within forum database
     category = db.relationship("Category", back_populates="threads")
     comments = db.relationship("Comment", back_populates="thread")
+
+    @property
+    def owner(self):
+        """Load user from main users table"""
+        if not self.user_id:
+            return None
+        from cps import ub
+        return ub.session.query(ub.User).filter(ub.User.id == self.user_id).first()
 
     @property
     def summary(self):
         return self.content[0:300] + "..."
 
     def is_owner(self, user):
-        return user == self.owner
+        return user and user.id == self.user_id
 
     def add_comment(self, content, owner):
         comment = Comment(content=content, user_id=owner.id, thread_id=self.id)

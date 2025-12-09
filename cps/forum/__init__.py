@@ -47,17 +47,20 @@ def init_forum_extensions(app):
         modus.init_app(app)
     if seeder_available and seeder:
         seeder.init_app(app, db)
+    
+    # Register context processor for forum templates
+    from cps.forum.context_processor import inject_forum_context
+    app.context_processor(inject_forum_context)
 
 def get_forum_blueprints():
-    """Get forum blueprints for registration"""
-    from cps.forum.apps.auth.routes import auth_blueprint
+    """Get forum blueprints for registration (auth excluded - using GetMyEBook SSO)"""
+    # Auth blueprint removed - forum uses GetMyEBook login via auth_bridge
     from cps.forum.apps.main.routes import main_blueprint
     from cps.forum.apps.threads.routes import thread_blueprint
     from cps.forum.apps.comments.routes import comments_blueprint
     from cps.forum.apps.settings.routes import settings_blueprint
     
     return {
-        'auth': auth_blueprint,
         'main': main_blueprint,
         'threads': thread_blueprint,
         'comments': comments_blueprint,
@@ -66,7 +69,8 @@ def get_forum_blueprints():
 
 def init_forum_models():
     """Import forum models after db is initialized"""
-    from cps.forum.database.models import User, Thread, Comment, Category
+    from cps.forum.database.models import Thread, Comment, Category
+    from cps.ub import User  # User comes from main app
     return {'User': User, 'Thread': Thread, 'Comment': Comment, 'Category': Category}
 
 __all__ = [

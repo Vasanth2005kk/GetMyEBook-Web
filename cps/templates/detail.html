@@ -359,7 +359,7 @@
                 {# Discussion Forum Button #}
                 {% if current_user.is_authenticated %}
                 <div class="btn-group" role="group" style="margin:20px 20px 20px 0;">
-                    <a href="{{ url_for('main.index') }}" class="btn btn-primary" role="button">
+                    <a href="/forum" class="btn btn-primary" role="button">
                         <span class="glyphicon glyphicon-comment"></span> {{ _('Community Forum') }}
                     </a>
                 </div>
