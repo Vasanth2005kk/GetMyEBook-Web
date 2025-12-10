@@ -217,6 +217,8 @@ DATABASENAME_APP={config['db_name_app']}
 # -------------------------
 # Uncomment and modify if you prefer to use a single DATABASE_URL
 DATABASE_URL=postgresql+psycopg2://{config['db_username']}:{config['db_password']}@{config['db_host']}:{config['db_port']}/{config['db_name_app']}
+# books and book page covers loaction path 
+BOOK_FILEPATH={config['book_location_path']}
 """
         
         # Write to file
@@ -316,6 +318,10 @@ def run_interactive_setup():
         "Database Name",
         default="getmyebook_app"
     )
+
+    book_location_path =  get_user_input(
+        "Books and Books Cover Path "
+    )
     
     # Test database connection
     print("\n" + "-" * 60)
@@ -342,7 +348,8 @@ def run_interactive_setup():
         'db_port': db_port,
         'db_username': db_username,
         'db_password': db_password,
-        'db_name_app': db_name_app
+        'db_name_app': db_name_app,
+        'book_location_path': book_location_path
     }
     
     # Create .env file

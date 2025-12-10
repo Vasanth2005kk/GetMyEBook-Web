@@ -172,7 +172,6 @@ DEFAULT_POSTGRESQL_PORT = 5432
 DEFAULT_POSTGRESQL_HOST = "localhost"
 DEFAULT_POSTGRESQL_USER = "calibreweb"
 DEFAULT_POSTGRESQL_APP_DB = "calibreweb_app"
-DEFAULT_POSTGRESQL_CALIBRE_DB = "calibreweb_library"
 
 EXTENSIONS_AUDIO = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
 EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',

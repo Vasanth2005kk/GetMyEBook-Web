@@ -768,7 +768,6 @@ def get_book_cover_internal(book, resolution=None):
                 if cache.get_cache_file_exists(thumbnail.filename, CACHE_TYPE_THUMBNAILS):
                     return send_from_directory(cache.get_cache_file_dir(thumbnail.filename, CACHE_TYPE_THUMBNAILS),
                                                thumbnail.filename)
-
         # Send the book cover from Google Drive if configured
         if config.config_use_google_drive:
             try:
@@ -783,10 +782,11 @@ def get_book_cover_internal(book, resolution=None):
             except Exception as ex:
                 log.error_or_exception(ex)
                 return get_cover_on_failure()
-
         # Send the book cover from the Calibre directory
         else:
             cover_file_path = os.path.join(config.get_book_path(), book.path)
+            log.info(f" book cover file path chacking !! {cover_file_path}")
+
             if os.path.isfile(os.path.join(cover_file_path, "cover.jpg")):
                 return send_from_directory(cover_file_path, "cover.jpg")
             else:

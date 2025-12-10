@@ -75,7 +75,7 @@ class _Settings(_Base):
     mail_server_type = Column(SmallInteger, default=0)
     mail_gmail_token = Column(JSON, default={})
 
-    config_calibre_dir = Column(String)
+    config_calibre_dir = Column(String,default=os.environ.get('BOOK_FILEPATH'))
     config_calibre_uuid = Column(String)
     config_calibre_split = Column(Boolean, default=False)
     config_calibre_split_dir = Column(String)
@@ -459,6 +459,9 @@ class ConfigSQL(object):
         self.save()
 
     def get_book_path(self):
+        book_path_floder = os.environ.get('BOOK_FILEPATH')
+        if book_path_floder and os.path.exists(book_path_floder):
+            return book_path_floder
         return self.config_calibre_split_dir if self.config_calibre_split_dir else self.config_calibre_dir
 
     def store_calibre_uuid(self, calibre_db, Library_table):
