@@ -41,3 +41,33 @@ def index():
 @main_blueprint.route('/about-us')
 def about():
     return render_template('main/about-us.html')
+
+
+@main_blueprint.route('/search')
+def search():
+    q = request.args.get('q', '')
+    page = request.args.get('page', 1, type=int)
+
+    threads = Thread.query.options(joinedload(Thread.category)).options(joinedload(Thread.comments))
+
+    if q:
+        from sqlalchemy import or_
+        threads = threads.filter(
+            or_(
+                Thread.title.ilike(f'%{q}%'),
+                Thread.content.ilike(f'%{q}%')
+            )
+        )
+
+    # Apply default sorting (recent)
+    threads = threads.order_by(Thread.created_at.desc())
+
+    # Pagination
+    threads = threads.paginate(page=page, per_page=10, error_out=False)
+
+    return render_template('main/index.html',
+                           threads=threads,
+                           primary_filter='recent',
+                           secondary_filter='all',
+                           search_query=q
+                           )

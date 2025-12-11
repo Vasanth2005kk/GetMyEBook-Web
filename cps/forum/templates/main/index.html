@@ -11,6 +11,17 @@
                 <p class="text-center">
                     Ask a development question or answer others questions.
                 </p>
+                <form action="{{ url_for('main.search') }}" method="GET" class="mt-4">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Search threads..."
+                            value="{{ search_query if search_query else '' }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -97,7 +108,11 @@
 
         {% if threads.items | length == 0 %}
         <div class="p-4 text-center">
+            {% if search_query %}
+            <h3 class="">No search results found for "{{ search_query }}"</h3>
+            {% else %}
             <h3 class="">There are not questions yet asked... </h3>
+            {% endif %}
             <img src="{{ url_for('static', filename='forum/images/checklist.svg') }}" width="200" />
         </div>
         {% endif %}
