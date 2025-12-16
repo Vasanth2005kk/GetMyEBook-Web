@@ -4,7 +4,7 @@ from slugify import slugify
 
 
 
-category_names = ["PHP", "Javascript", "Python", "HTML-CSS"]
+category_names = ["General", "Book Discussion", "Recommendations", "Technical Support"]
 
 
 class CategorySeeder(Seeder):
@@ -12,3 +12,9 @@ class CategorySeeder(Seeder):
         for category_name in category_names:
             category = Category(name=category_name, slug=slugify(category_name))
             category.save()
+
+def categories_run():
+    # Only run if no categories exist to avoid duplication
+    if Category.query.first() is None:
+        run = CategorySeeder()
+        run.run()

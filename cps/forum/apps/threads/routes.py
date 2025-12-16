@@ -6,9 +6,11 @@ from cps.forum.database.models import Thread, Category
 from cps.forum.src.decorators.email_verified import email_verified
 from sqlalchemy.orm import joinedload
 
+from cps.logger import create
+
 thread_blueprint = Blueprint("threads", __name__, template_folder="templates")
 
-
+log = create()
 
 
 @thread_blueprint.route("/create", methods=["GET", "POST"])
@@ -20,11 +22,11 @@ def create():
 
     thread_form = ThreadCreationForm()
 
-    # Pre-fill from query args if not submitted
-    book_id = None
+    # Pre-fill from query args or form
+    book_id = request.args.get('book_id', type=int) or request.form.get('book_id', type=int)
+
     if request.method == 'GET':
         title_arg = request.args.get('title')
-        book_id = request.args.get('book_id', type=int)
         if title_arg and not thread_form.title.data:
             thread_form.title.data = title_arg
             thread_form.content.data = f"Official discussion thread for **{title_arg}**."
@@ -34,10 +36,6 @@ def create():
         category_id = thread_form.category_id.data
         content = thread_form.content.data
         user_id = current_user.id
-        
-        # Get book_id from form or query params
-        if not book_id:
-            book_id = request.form.get('book_id', type=int)
 
         thread = Thread(title=title,
                         category_id=category_id,
@@ -142,6 +140,11 @@ def show(category_slug, thread_slug):
     # Fetch book data if this thread is linked to a book
     book = None
     book_format = None
+    log.info(f"thread All datas :")
+    log.info({
+    c.name: getattr(thread, c.name)
+    for c in thread.__table__.columns
+    })
     if thread.book_id:
         book = calibre_db.get_book(thread.book_id)
         if book:
@@ -175,7 +178,7 @@ def show(category_slug, thread_slug):
     recent_discussions = Thread.query\
         .order_by(Thread.updated_at.desc())\
         .limit(5).all()
-
+    log.info(f"show.html chacking parms {book},{book_format}")
     return render_template("threads/show.html", 
                          thread=thread, 
                          book=book,

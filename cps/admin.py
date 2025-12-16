@@ -1257,12 +1257,19 @@ def update_mailsettings():
     else:
         _config_int(to_save, "mail_port")
         _config_int(to_save, "mail_use_ssl")
+        
+        # DEBUG: Log password saving attempt (masked)
+        if to_save.get("mail_password_e"):
+             log.info("Updating Mail Settings: Password provided in form, updating configuration.")
+        else:
+             log.info("Updating Mail Settings: No password in form, keeping existing password.")
+
         if to_save.get("mail_password_e", ""):
             _config_string(to_save, "mail_password_e")
         _config_int(to_save, "mail_size", lambda y: int(y) * 1024 * 1024)
-        config.mail_server = to_save.get('mail_server', "").strip()
-        config.mail_from = to_save.get('mail_from', "").strip()
-        config.mail_login = to_save.get('mail_login', "").strip()
+        _config_string(to_save, "mail_server")
+        _config_string(to_save, "mail_from")
+        _config_string(to_save, "mail_login")
     try:
         config.save()
         # Explicitly reload config to ensure we have the latest data

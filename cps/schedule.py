@@ -25,6 +25,7 @@ from .tasks.clean import TaskClean
 from .tasks.thumbnail import TaskGenerateCoverThumbnails, TaskGenerateSeriesThumbnails, TaskClearCoverThumbnailCache
 from .services.worker import WorkerThread
 from .tasks.metadata_backup import TaskBackupMetadata
+from .tasks.check_threads import TaskCheckThreads
 
 def get_scheduled_tasks(reconnect=True):
     tasks = list()
@@ -80,6 +81,11 @@ def register_scheduled_tasks(reconnect=True):
         # Kick-off tasks, if they should currently be running
         if should_task_be_running(start, duration):
             scheduler.schedule_tasks_immediately(tasks=get_scheduled_tasks(reconnect))
+            
+        # Schedule thread check every 5 hours
+        scheduler.schedule_task(lambda: TaskCheckThreads(), 
+                              trigger=CronTrigger(hour='*/5', minute=0), 
+                              name="check threads")
 
 
 def register_startup_tasks():

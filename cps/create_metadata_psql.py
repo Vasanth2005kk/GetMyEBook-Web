@@ -6,7 +6,7 @@ from sqlalchemy.exc import ProgrammingError
 from dotenv import load_dotenv
 from .utils import get_env_path, get_project_root
 
-from . import logger
+from . import logger , auto_create_threads
 
 log = logger.create()
 
@@ -40,7 +40,7 @@ def ensure_pgloader_installed():
 # Migration workflow
 # ---------------------------
 def migrate_sqlite_to_postgres(SQLITE_PATH):
-    if SQLITE_PATH.endswith('.db'):
+    if not SQLITE_PATH.endswith('.db'):
         SQLITE_PATH = os.path.join(SQLITE_PATH, 'metadata.db')
     log.info(f"SQLite DB Path: {SQLITE_PATH}")
     # Encode password safely
@@ -97,17 +97,18 @@ def migrate_sqlite_to_postgres(SQLITE_PATH):
     log.info(result.stderr)
 
     if result.returncode != 0:
-        log.error(f"⚠ pgloader failed with return code {result.returncode}.")
-        return
+        error_msg = f"pgloader failed with return code {result.returncode}. Stderr: {result.stderr}"
+        log.error(f"⚠ {error_msg}")
+        raise Exception(error_msg)
 
     log.info("✔ Migration completed successfully.")
-
+    auto_create_threads.create_threads()
 
 # ---------------------------
 # Main entry
 # ---------------------------
 # default path
-# SQLITE_PATH = os.path.join(get_project_root(), 'library/metadata.db')
+SQLITE_PATH = os.path.join(get_project_root(), 'library/metadata.db')
 
-# if __name__ == "__main__":
-#     migrate_sqlite_to_postgres(SQLITE_PATH)
+if __name__ == "__main__":
+    migrate_sqlite_to_postgres(SQLITE_PATH)

@@ -44,7 +44,7 @@ export default {
             const formData = new FormData();
             formData.append("avatar", event.target.files[0]);
 
-            axios.post("/settings/avatar", formData, {
+            axios.post("/forum/settings/avatar", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data"
                 }

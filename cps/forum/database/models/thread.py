@@ -10,7 +10,7 @@ class Thread(Base):
     json_attributes = ("id", "title", "slug", "content", "user_id", "category_id", "comments_count", "book_id")
 
     __tablename__ = "forum_threads"
-    title = db.Column(db.String(100), nullable=False)
+    title = db.Column(db.String(250), nullable=False)
     slug = db.Column(db.String(250), nullable=False)
     content = db.Column(db.Text)
     user_id = db.Column(db.Integer)  # Changed from forum_users to users (Foreign key constraint removed to avoid metadata mismatch)

@@ -1,21 +1,20 @@
 import sys
 import os
-import logging
+from . import logger
 from slugify import slugify
 
 # Add current directory to path so we can import cps
 sys.path.append(os.getcwd())
-
-from cps import create_app, calibre_db, ub, db
+# from cps import create_app , calibre_db , ub , db
 from cps.forum.database.models import Thread, Category
+from .forum.database.seeds.category_seeder import categories_run
+log = logger.create()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
 
 def create_threads():
-    app = create_app()
+    from cps import app, calibre_db, ub, db
     with app.app_context():
+        categories_run()
         log.info("Starting thread creation for existing books...")
         
         # Get "General" category

@@ -5,9 +5,9 @@
 {% block main %}
 <link rel="stylesheet" href="{{ url_for('static', filename='forum/css/discussion.css') }}">
 
-<div class="discussion-container">
-
-
+<div class="discussion-container" style="position: relative;">
+    <a href="/" class="btn btn-info" role="button"
+        style="position: absolute; left: 10px; top: 0px; z-index: 100;">Home</a>
     <!-- left Side: Discussion (60%) -->
     <div class="discussion-panel">
         <!-- Main Discussion Feed -->

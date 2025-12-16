@@ -80,7 +80,7 @@ def _error_response(message, status_code = 422):
         }
     }), status_code
 
-avatar_extensions = ("png", "jpeg", "jpg", "gif") 
+avatar_extensions = ("png", "jpeg", "jpg", "gif", "svg") 
 
 @login_required
 @settings_blueprint.route('avatar', methods=["POST"])
@@ -92,13 +92,13 @@ def avatar():
         flash("Please provide an image", category="error")
         return _error_response("Please provide an image")
 
-    extension = avatar_file.filename.split(".")[-1]
+    extension = avatar_file.filename.split(".")[-1].lower()
 
     if not extension or not extension in avatar_extensions:
         flash("Please provide a valid image", category="error")
         return _error_response("Please provide a valid image")
 
-    avatar_name = generate_random_str(20) + '.' + extension.lower()
+    avatar_name = generate_random_str(20) + '.' + extension
     avatar_file.save(os.path.join(app.config['AVATAR_FOLDER'], avatar_name))
 
     # Update forum_avatar column

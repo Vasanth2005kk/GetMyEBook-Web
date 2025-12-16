@@ -25,6 +25,6 @@ class Config:
     MAIL_USE_TLS = environ.get('MAIL_ENCRYPTION') == "tls"
 
     APP_FOLDER = os.path.dirname(__file__)
-    AVATAR_FOLDER = os.path.join(APP_FOLDER, 'public/images/avatars')
+    AVATAR_FOLDER = os.path.join(APP_FOLDER, '../static/forum/images/avatars')
 
     DEBUG_TB_INTERCEPT_REDIRECTS = False

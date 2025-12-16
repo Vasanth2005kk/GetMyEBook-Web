@@ -21,9 +21,11 @@
 .discussion-container {
     display: flex;
     /* height: calc(100vh - 80px); */
+    height: 98vh;
     gap: 0;
     background: var(--bg-light);
     overflow: hidden;
+    margin-top: 10px;
 }
 
 /* Left Side - Book Reader (35%) */
