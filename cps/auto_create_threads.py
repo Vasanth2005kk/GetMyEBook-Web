@@ -12,7 +12,8 @@ log = logger.create()
 
 
 def create_threads():
-    from cps import app, calibre_db, ub, db
+    from cps import create_app, calibre_db, ub, db
+    app = create_app()
     with app.app_context():
         categories_run()
         log.info("Starting thread creation for existing books...")

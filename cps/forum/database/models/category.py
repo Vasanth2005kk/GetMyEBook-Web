@@ -7,6 +7,7 @@ class Category(Base):
     
     name = db.Column(db.String(100))
     slug = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=db.func.now())
 
     threads = db.relationship("Thread", back_populates="category")
 
@@ -14,7 +15,8 @@ class Category(Base):
         return {
             "id": self.id,
             "name": self.name,
-            "slug": self.slug
+            "slug": self.slug,
+            "created_at": self.created_at
         }
 
 

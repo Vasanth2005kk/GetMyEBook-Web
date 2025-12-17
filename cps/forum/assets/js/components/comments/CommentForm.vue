@@ -1,25 +1,26 @@
 <template>
-    <div class="my-4 bg-white px-2 py-3">
-        <form method="POST" @submit.prevent="handleSubmit" v-if="canComment">
-            <div class="d-flex align-items-start">
-                <img :src="auth.profilePicture" class="rounded-circle mr-2" width="50"/>
-                <div class="flex-1">
-                    <textarea class="form-control" placeholder="Your comment..." v-model="content" @keydown="clearInput('content')"></textarea>
-                    <span class="text-danger" v-if="errors.has('content')">{{ errors.get("content")}}</span>
+    <div class="chat-input-container bg-white border-top p-3">
+        <form method="POST" @submit.prevent="handleSubmit" v-if="canComment" class="chat-form">
+            <div class="input-group d-flex align-items-center" style="background: #fff; border: 1px solid #e0e0e0; border-radius: 24px; padding: 4px 8px 4px 16px; transition: border-color 0.2s;">
+                <input 
+                    type="text" 
+                    class="form-control border-0 shadow-none p-0" 
+                    placeholder="chat..." 
+                    v-model="content" 
+                    @keydown="clearInput('content')"
+                    style="background: transparent;"
+                >
+                <div class="input-actions ml-2">
+                    <button class="btn btn-sm rounded-circle d-flex align-items-center justify-content-center" :disabled="isSending" style="width: 32px; height: 32px; background: #e0e0e0; color: #666;" :class="{'bg-primary text-white': content.length > 0}">
+                        <i class="las la-plus" v-if="!isSending"></i>
+                        <i class="las la-circle-notch la-spin" v-else></i>
+                    </button>
                 </div>
             </div>
-            <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-primary btn-sm form-btn" :disabled="isSending">
-                    <span v-if="! isSending" class="text-white">
-                        Add comment
-                    </span>
-                    <span class="text-white" v-else>Commenting... <i class='las la-circle-notch la-spin text-white'></i></span>
-                </button>
-            </div>
+            <div class="text-danger small mt-1 pl-3" v-if="errors.has('content')">{{ errors.get("content")}}</div>
         </form>
-        <div v-else>
-            <div class="text-center" v-html="restrictionMessage">
-            </div>
+        <div v-else class="text-center small text-muted">
+            <span v-html="restrictionMessage"></span>
         </div>
     </div>
 </template>
@@ -45,6 +46,7 @@
         },
         methods: {
             handleSubmit() {
+                if (!this.content.trim()) return;
                 this.isSending = true;
 
                 axios.post(`/forum/api/threads/${this.threadId}/comments`, {content: this.content})
@@ -69,12 +71,12 @@
                 
                 if(! window.Auth) {
                     return `
-                        To comment, you must <a href="/login">login</a>
+                        <a href="/login" class="text-primary">Login</a> to chat
                     `
                 }
 
                 if(! window.Auth.email_verified){
-                    return `You must validate your email to comment`
+                    return `Verify email to chat`
                 }
 
                 return ""
@@ -83,12 +85,11 @@
     }
 </script>
 
-<style>
-    .flex-1 {
-        flex: 1;
+<style scoped>
+    .input-group:focus-within {
+        border-color: #aaa !important;
     }
-
-    .form-btn {
-        min-width: 120px;
+    .form-control::placeholder {
+        color: #999;
     }
 </style>

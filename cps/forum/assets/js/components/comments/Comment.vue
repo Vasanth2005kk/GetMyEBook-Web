@@ -1,43 +1,46 @@
 <template>
-    <div class="comment my-2">
-        <div class="d-flex align-items-center">
-            <img :src="comment.owner.profile_picture" class="rounded-circle mr-2" width="25">
-            <h6 class="m-0">
-                {{ comment.owner.name }}
-                <span class="text-muted small ml-2" style="font-size: 0.8em;">{{ postedAt }}</span>
-            </h6>
+    <div class="comment-item d-flex mb-3">
+        <div class="flex-shrink-0 mr-3">
+            <img :src="comment.owner.profile_picture" class="rounded-circle" width="36" height="36" style="object-fit: cover;">
         </div>
-        <div class="comment-content">
-            <textarea v-model="content" class="form-control mb-2" v-show="editing"></textarea>
-            <div v-if="! editing">
-                {{ comment.content }}
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-baseline mb-1">
+                <h6 class="font-weight-bold m-0 mr-2" style="font-size: 0.95rem;">
+                    {{ comment.owner.name }}
+                </h6>
+                <span class="text-muted" style="font-size: 0.8rem;">{{ postedAt }}</span>
+            </div>
+            
+            <div class="comment-body">
+                <textarea v-model="content" class="form-control mb-2" v-if="editing" rows="3"></textarea>
+                <div v-else class="text-dark" style="font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;">
+                    {{ comment.content }}
+                </div>
             </div>
 
-        </div>
-        <div class="d-flex justify-content-end">
-            <div class="d-flex" v-if="! editing">
-                <button class="btn btn-light mr-2" @click="toggleLike" title="Like">
-                     <i class="las la-thumbs-up" :class="{'text-primary': liked}"></i>
-                     <span v-if="likesCount > 0" class="ml-1">{{ likesCount }}</span>
+            <!-- Actions (Edit/Delete/Like) - kept minimal -->
+            <div class="comment-actions mt-1 d-flex align-items-center">
+                <button class="btn btn-link btn-sm p-0 mr-3 text-muted" @click="toggleLike" style="text-decoration: none;">
+                    <i class="las la-thumbs-up" :class="{'text-primary': liked}"></i>
+                    <span v-if="likesCount > 0" class="small">{{ likesCount }}</span>
                 </button>
-                <button class="btn btn-light mr-2" v-show="isOwner" @click="showEditionInput" title="Edit">
-                    <i class="las la-pencil-alt"></i>
-                </button>
-                <button class="btn btn-light " @click="deleteComment" v-show="isOwner" title="Delete">
-                    <i class="las la-trash text-danger"></i>
-                </button>
+                
+                <template v-if="isOwner">
+                    <button class="btn btn-link btn-sm p-0 mr-3 text-muted" v-if="!editing" @click="showEditionInput">
+                        <small>Edit</small>
+                    </button>
+                    <button class="btn btn-link btn-sm p-0 text-muted" v-if="!editing" @click="deleteComment">
+                         <small>Delete</small>
+                    </button>
+                    
+                    <button class="btn btn-link btn-sm p-0 mr-3 text-primary" v-if="editing" @click="updateComment">
+                        <small>Save</small>
+                    </button>
+                    <button class="btn btn-link btn-sm p-0 text-danger" v-if="editing" @click="hideEditionInput">
+                        <small>Cancel</small>
+                    </button>
+                </template>
             </div>
-            <div class="d-flex" v-if="editing">
-                <button class="btn btn-light text-danger mr-2" v-show="isOwner" @click="hideEditionInput">
-                    Cancel
-                </button>
-                <button class="btn btn-light text-primary" v-show="isOwner"
-                    @click.prevent="updateComment"
-                >
-                    Save
-                </button>
-            </div>
-
         </div>
     </div>
 </template>
@@ -59,14 +62,12 @@
             }
         },
         mounted() {
-            // loose initialization if available in comment prop
             if (this.comment.likes_count) {
                 this.likesCount = this.comment.likes_count;
             }
             if (this.comment.liked_by_current_user) {
                 this.liked = this.comment.liked_by_current_user;
             }
-            // Update time every minute
             this.timer = setInterval(() => {
                 this.now = new Date();
             }, 60000);
@@ -79,6 +80,7 @@
                 return `/forum/api/comments/${this.comment.id}`;
             },
             deleteComment() {
+                if(!confirm("Are you sure you want to delete this comment?")) return;
                 axios.delete(this.endpoint())
                     .then(() => {
                         this.$emit('delete', this.comment)
@@ -93,6 +95,8 @@
                 this.editing = false;
             },
             updateComment() {
+                // optimistic update
+                const oldContent = this.comment.content;
                 this.$emit('update', { ...this.comment, content: this.content });
                 this.editing = false;
 
@@ -100,20 +104,20 @@
                     .then(({data}) => {
                         this.$emit('update', data)
                     })
-                    .catch(error => console.log(error));
+                    .catch(error => {
+                        // revert
+                        this.$emit('update', { ...this.comment, content: oldContent });
+                        console.log(error)
+                    });
             },
             toggleLike() {
-                // Optimistic update
                 this.liked = !this.liked;
                 this.likesCount += this.liked ? 1 : -1;
                 
-                // Call backend (dummy endpoint for now, will fail 404/405 until implemented)
                 axios.post(this.endpoint() + '/like')
                     .catch(e => {
-                        // Revert on error
                         this.liked = !this.liked;
                         this.likesCount += this.liked ? 1 : -1;
-                        console.log("Like endpoint not implemented yet", e);
                     });
             }
         },
@@ -121,8 +125,6 @@
             postedAt() {
                 if (!this.comment.created_at) return '';
                 
-                // Assume Server sends datetime in UTC. 
-                // If the string is "YYYY-MM-DD HH:MM:SS", appending 'Z' forces JS to read it as UTC.
                 let dateStr = this.comment.created_at;
                 if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
                     dateStr += 'Z';
@@ -131,25 +133,24 @@
                 const date = new Date(dateStr);
                 const seconds = Math.floor((this.now - date) / 1000);
                 
-                // Handle clock skew (if client time is behind server time)
-                if (seconds < 0) return "just now";
+                if (seconds < 0) return "now";
 
                 let interval = seconds / 31536000;
-                if (interval > 1) return Math.floor(interval) + " years ago";
+                if (interval > 1) return Math.floor(interval) + "y";
                 
                 interval = seconds / 2592000;
-                if (interval > 1) return Math.floor(interval) + " months ago";
+                if (interval > 1) return Math.floor(interval) + "mo";
                 
                 interval = seconds / 86400;
-                if (interval > 1) return Math.floor(interval) + " days ago";
+                if (interval > 1) return Math.floor(interval) + "d";
                 
                 interval = seconds / 3600;
-                if (interval > 1) return Math.floor(interval) + " hours ago";
+                if (interval > 1) return Math.floor(interval) + "h";
                 
                 interval = seconds / 60;
-                if (interval > 1) return Math.floor(interval) + " minutes ago";
+                if (interval > 1) return Math.floor(interval) + "m";
                 
-                return "just now";
+                return "now";
             },
             isOwner() {
                 return !! window.Auth && window.Auth.id === this.comment.owner.id
@@ -158,14 +159,15 @@
     }
 </script>
 
-<style>
-    .comment {
-        background: #fff;
-        padding: 1rem
+<style scoped>
+    .comment-item {
+        transition: background-color 0.2s;
     }
-
-    .comment-content {
-        margin-top: .25rem;
-        padding-left: 2rem;
+    .comment-actions {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .comment-item:hover .comment-actions {
+        opacity: 1;
     }
 </style>

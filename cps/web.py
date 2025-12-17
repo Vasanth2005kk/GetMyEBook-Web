@@ -96,7 +96,7 @@ def add_security_headers(resp):
     csp = "default-src " + ' '.join(default_src)
     if request.endpoint == "web.read_book" and config.config_use_google_drive:
         csp +=" blob: "
-    csp += "; font-src 'self' data:"
+    csp += "; font-src 'self' data: https://fonts.gstatic.com"
     if request.endpoint == "web.read_book":
         csp += " blob: "
     csp += "; img-src 'self'"
@@ -106,11 +106,14 @@ def add_security_headers(resp):
     if request.endpoint == "edit-book.show_edit_book" or config.config_use_google_drive:
         csp += " *"
     if request.endpoint == "web.read_book":
-        csp += " blob: ; style-src-elem 'self' blob: 'unsafe-inline'"
+        csp += " blob: ; style-src-elem 'self' blob: 'unsafe-inline' https://fonts.googleapis.com"
+    else:
+        csp += "; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com"
+        
     csp += "; object-src 'none';"
     resp.headers['Content-Security-Policy'] = csp
     resp.headers['X-Content-Type-Options'] = 'nosniff'
-    resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    resp.headers['X-Frame-Options'] = 'ALLOWALL'
     resp.headers['X-XSS-Protection'] = '1; mode=block'
     resp.headers['Strict-Transport-Security'] = 'max-age=31536000';
     return resp

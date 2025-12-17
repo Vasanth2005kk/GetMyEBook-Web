@@ -306,17 +306,17 @@ def run_interactive_setup():
     
     db_username = get_user_input(
         "Database Username",
-        default='vasanth'
+        default=''
     )
     
     db_password = get_user_input(
         "Database Password",
-        default='V2s2nth2005kk'
+        default=''
     )
     
     db_name_app = get_user_input(
         "Database Name",
-        default="getmyebook_app"
+        default=""
     )
 
     book_location_path =  get_user_input(

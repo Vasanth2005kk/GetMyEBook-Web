@@ -1,11 +1,11 @@
 <template>
     <div>
-        <CommentForm  :threadId="id" @submit="handleNewComment"/>
-        <div class="my-3">
+        <div class="comments-list mb-3">
             <Comment v-for="comment in comments" :comment="comment" :key="comment.id"
                 @delete="removeComment" @update="updateComment"
             />
         </div>
+        <CommentForm  :threadId="id" @submit="handleNewComment"/>
     </div>
 </template>
 
@@ -30,11 +30,13 @@ export default {
     methods: {
         fetchComments() {
              axios.get(`/forum/api/threads/${this.id}/comments`)
-                .then(({data}) => this.comments = data)
+                .then(({data}) => this.comments = data.reverse())
+        
+                console.log("all Comments :",this.comments)
 
         },
         handleNewComment(comment) {
-            this.comments.unshift(comment)
+            this.comments.push(comment)
         },
         removeComment(deletedComment) {
             this.comments = this.comments.filter((comment) => comment.id !== deletedComment.id);

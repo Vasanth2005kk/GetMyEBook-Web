@@ -10,7 +10,7 @@ const config = {
     mode: dev ? 'development' : 'production',
     entry: "./assets/js/index.js",
     output: {
-        path: buildDirectory + '/public/js',
+        path: path.resolve(__dirname, '../static/forum/js'),
         filename: '[name].js'
     },
     watch: dev,
@@ -44,7 +44,12 @@ const config = {
                     {
                         loader: 'css-loader',
                     },
-                    'sass-loader'
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            implementation: require('sass'),
+                        },
+                    }
                 ]
             },
             {
@@ -87,12 +92,12 @@ const config = {
     ]
 };
 
-if(dev) {
+if (dev) {
     config.plugins.push(new BrowserSyncPlugin({
         host: 'localhost',
         port: 3000,
         proxy: 'http://localhost:5000/',
-        files:  [
+        files: [
             "public/css/main.css", "public/js/main.js",
             "apps/**/*.py"
         ],
