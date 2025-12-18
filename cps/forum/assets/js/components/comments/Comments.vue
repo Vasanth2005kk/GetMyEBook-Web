@@ -2,10 +2,10 @@
     <div>
         <div class="comments-list mb-2">
             <Comment v-for="comment in comments" :comment="comment" :key="comment.id"
-                @delete="removeComment" @update="updateComment"
+                @delete="removeComment" @update="updateComment" @reply="handleReply"
             />
         </div>
-        <CommentForm  :threadId="id" @submit="handleNewComment"/>
+        <CommentForm ref="commentForm" :threadId="id" @submit="handleNewComment"/>
     </div>
 </template>
 
@@ -49,6 +49,14 @@ export default {
 
                 return comment
             })
+        },
+        handleReply(comment) {
+            const form = this.$refs.commentForm;
+            if (form) {
+                // Populate with username and focus
+                form.content = `@${comment.owner.name} `;
+                form.focusInput();
+            }
         }
     },
 }

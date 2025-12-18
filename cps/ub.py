@@ -268,7 +268,8 @@ class User(UserBase, Base):
             "name": self.name,
             "email": self.email,
             "profilePicture": self.profile_picture,
-            "email_verified": self.forum_email_verified_at is not None
+            "email_verified": self.forum_email_verified_at is not None,
+            "isAdmin": self.role_admin()
         }
 
 oauth_support = True

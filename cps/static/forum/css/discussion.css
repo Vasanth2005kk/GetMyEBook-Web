@@ -122,26 +122,27 @@
 /* Thread Header Card */
 .thread-header-card {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 12px 12px 0 0;
     padding: 24px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
     display: flex;
     gap: 24px;
     align-items: flex-start;
+    /* border-style: none none solid; */
+    position: sticky;
+    top: 0;
 }
 
 .back-home {
     color: black;
     font-size: 1.7rem;
-    position: absolute;
-    top: 5%;
     text-decoration: none;
+    margin-top: 30px;
     /* color: #fff; */
 }
 /* Book Cover */
 .discussion-book-cover img {
     width: 160px;
-    margin-left: 40%;
     border-radius: 8px;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
 }
@@ -154,7 +155,6 @@
     /* align-items: center; */
     flex: 1;
     margin-top: 10px;
-    margin-left: 10%;
 }
 
 /* Title */
@@ -280,10 +280,7 @@
 /* Comments Section */
 .comments-section {
     background: white;
-    border-radius: 16px;
     padding: 30px;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
 }
 
 .comments-header {
@@ -300,15 +297,6 @@
     color: var(--primary-color);
 }
 
-/* Comment Item */
-.comment-item {
-    padding: 20px 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.comment-item:last-child {
-    border-bottom: none;
-}
 
 .comment-header {
     display: flex;
@@ -359,12 +347,6 @@
     color: var(--text-dark);
     line-height: 1.7;
     margin-bottom: 12px;
-    padding-left: 64px;
-}
-
-.comment-actions {
-    display: flex;
-    gap: 16px;
     padding-left: 64px;
 }
 

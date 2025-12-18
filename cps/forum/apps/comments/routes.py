@@ -7,16 +7,17 @@ from cps.forum.src.utilities.helpers import now
 from cps.forum.src.api.comment_schema import comment_validation_schema
 from marshmallow import ValidationError
 
-
 comments_blueprint = Blueprint("comments", __name__)
 
 
-@login_required
 @comments_blueprint.route('/threads/<int:thread_id>/comments', methods=["GET", "POST"])
 def index(thread_id):
     thread = Thread.query.get_or_404(thread_id)
 
     if request.method == "POST":
+        if not current_user.is_authenticated:
+            return abort(401)
+
         try:
             comment_validation_schema.load(request.json)
         except ValidationError as err:
@@ -39,9 +40,8 @@ def index(thread_id):
 @comments_blueprint.route('/comments/<int:comment_id>', methods=["GET", "PATCH", "DELETE"])
 def show(comment_id):
     comment = Comment.query.get_or_404(comment_id)
-
-    if not comment.is_owner(current_user):
-        return jsonify({"message": "You are not authorized to perform this action"}), 403
+    if request.method == "GET":
+        return jsonify(comment_schema.dump(comment)), 200
 
     if request.method == "DELETE":
         comment.delete()

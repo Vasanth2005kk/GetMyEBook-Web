@@ -9,6 +9,29 @@
                     {{ comment.owner.name }}
                 </h6>
                 <span class="text-muted" style="font-size: 0.8rem;">{{ postedAt }}</span>
+                 <!-- Push to right end -->
+                <div class="position-relative ml-auto">
+                    <span class="three-btn" @click="toggleMenu">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </span>
+                    <div v-if="showMenu" class="dropdown-menu dropdown-menu-right show shadow-sm" style="top: 100%; right: 0; min-width: 120px; z-index: 1000; position: absolute;">
+                        <button class="dropdown-item" @click="reply">
+                            <i class="fas fa-reply mr-2"></i>Reply
+                        </button>
+                        <template v-if="isOwner || isAdmin">
+                            <button class="dropdown-item" @click="showEditionInput">
+                                <i class="fas fa-pen mr-2"></i>Edit
+                            </button>
+                        </template>
+                        <template v-if="isOwner || isAdmin">
+                            <button class="dropdown-item text-danger" @click="deleteComment">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <!-- Backbone for closing menu on outside click -->
+                <div v-if="showMenu" @click="showMenu = false" class="fixed-inset" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999; cursor: default;"></div>
             </div>
             
             <div class="comment-body">
@@ -25,14 +48,8 @@
                     <span v-if="likesCount > 0" class="small">{{ likesCount }}</span>
                 </button>
                 
-                <template v-if="isOwner">
-                    <button class="btn btn-link btn-sm p-0 mr-3 text-muted" v-if="!editing" @click="showEditionInput">
-                        <small>Edit</small>
-                    </button>
-                    <button class="btn btn-link btn-sm p-0 text-muted" v-if="!editing" @click="deleteComment">
-                         <small>Delete</small>
-                    </button>
-                    
+                <template v-if="isOwner || isAdmin">
+                    <!-- Edit/Delete moved to menu -->
                     <button class="btn btn-link btn-sm p-0 mr-3 text-primary" v-if="editing" @click="updateComment">
                         <small>Save</small>
                     </button>
@@ -55,6 +72,7 @@
         data() {
             return {
                 editing: false,
+                showMenu: false,
                 content: "",
                 liked: false, 
                 likesCount: 0,
@@ -80,6 +98,7 @@
                 return `/forum/api/comments/${this.comment.id}`;
             },
             deleteComment() {
+                this.showMenu = false;
                 if(!confirm("Are you sure you want to delete this comment?")) return;
                 axios.delete(this.endpoint())
                     .then(() => {
@@ -88,6 +107,7 @@
                     .catch(e => console.log(e))
             },
             showEditionInput() {
+                this.showMenu = false;
                 this.content = this.comment.content;
                 this.editing = true;
             },
@@ -119,6 +139,13 @@
                         this.liked = !this.liked;
                         this.likesCount += this.liked ? 1 : -1;
                     });
+            },
+            toggleMenu() {
+                this.showMenu = !this.showMenu;
+            },
+            reply() {
+                this.showMenu = false;
+                this.$emit('reply', this.comment);
             }
         },
         computed: {
@@ -155,13 +182,27 @@
                 return Math.floor(seconds) + "s";
             },
             isOwner() {
-                return !! window.Auth && window.Auth.id === this.comment.owner.id
+                return !! window.Auth && window.Auth.id === this.comment.user_id
+            },
+            isAdmin() {
+                return !! window.Auth && window.Auth.isAdmin;
             }
         }
     }
 </script>
 
 <style scoped>
+    .three-btn {
+        color: #6c757d !important;
+        cursor: pointer;
+        padding: 4px 8px;
+    }
+
+    .three-btn:hover {
+        background-color: #f1f1f1;
+        border-radius: 4px;
+    }
+
     .like-btn {
         outline: 0;
         border: none;
