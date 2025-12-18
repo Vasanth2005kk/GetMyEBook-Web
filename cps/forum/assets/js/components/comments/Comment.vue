@@ -13,15 +13,15 @@
             
             <div class="comment-body">
                 <textarea v-model="content" class="form-control mb-2" v-if="editing" rows="3"></textarea>
-                <div v-else class="text-dark" style="font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;">
+                <div v-else class="text-dark" style="font-size: 0.95rem; line-height: 1.5;">
                     {{ comment.content }}
                 </div>
             </div>
 
             <!-- Actions (Edit/Delete/Like) - kept minimal -->
-            <div class="comment-actions mt-1 d-flex align-items-center">
-                <button class="btn btn-link btn-sm p-0 mr-3 text-muted" @click="toggleLike" style="text-decoration: none;">
-                    <i class="las la-thumbs-up" :class="{'text-primary': liked}"></i>
+            <div class="comment-actions mt-1 d-flex align-items-center"> 
+                <button class="like-btn btn-link btn-sm p-0 mr-3 text-muted" @click="toggleLike" style="text-decoration: none;font-size: 1.3rem;">
+                    <i class="fas fa-thumbs-up" :class="{'text-primary': liked}"></i>
                     <span v-if="likesCount > 0" class="small">{{ likesCount }}</span>
                 </button>
                 
@@ -70,7 +70,7 @@
             }
             this.timer = setInterval(() => {
                 this.now = new Date();
-            }, 60000);
+            }, 1000);
         },
         destroyed() {
             clearInterval(this.timer);
@@ -126,31 +126,33 @@
                 if (!this.comment.created_at) return '';
                 
                 let dateStr = this.comment.created_at;
-                if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
-                    dateStr += 'Z';
+                if (typeof dateStr === 'string') {
+                     // Standardize format slightly for browser parsing compatibility (replace space with T)
+                     // Do NOT force UTC (Z) as server seems to return Local Time relative to server
+                     dateStr = dateStr.replace(' ', 'T');
                 }
                 
                 const date = new Date(dateStr);
                 const seconds = Math.floor((this.now - date) / 1000);
                 
-                if (seconds < 0) return "now";
+                if (seconds < 0) return "0s";
 
                 let interval = seconds / 31536000;
-                if (interval > 1) return Math.floor(interval) + "y";
+                if (interval >= 1) return Math.floor(interval) + "y";
                 
                 interval = seconds / 2592000;
-                if (interval > 1) return Math.floor(interval) + "mo";
+                if (interval >= 1) return Math.floor(interval) + "mo";
                 
                 interval = seconds / 86400;
-                if (interval > 1) return Math.floor(interval) + "d";
+                if (interval >= 1) return Math.floor(interval) + "d";
                 
                 interval = seconds / 3600;
-                if (interval > 1) return Math.floor(interval) + "h";
+                if (interval >= 1) return Math.floor(interval) + "h";
                 
                 interval = seconds / 60;
-                if (interval > 1) return Math.floor(interval) + "m";
+                if (interval >= 1) return Math.floor(interval) + "m";
                 
-                return "now";
+                return Math.floor(seconds) + "s";
             },
             isOwner() {
                 return !! window.Auth && window.Auth.id === this.comment.owner.id
@@ -160,12 +162,24 @@
 </script>
 
 <style scoped>
+    .like-btn {
+        outline: 0;
+        border: none;
+        background-color:#FFFFFF;
+    }
+    /* Comment Item */
     .comment-item {
         transition: background-color 0.2s;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .comment-item:last-child {
+        border-bottom: none;
     }
     .comment-actions {
-        opacity: 0;
         transition: opacity 0.2s;
+        display: flex;
+        gap: 16px;
     }
     .comment-item:hover .comment-actions {
         opacity: 1;

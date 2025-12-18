@@ -3,7 +3,7 @@ from cps.forum.database.models.category import Category
 from cps.forum.src.cache import Cache
 
 def now():
-    return datetime.utcnow()
+    return datetime.now()
 
 
 def cached_categories():

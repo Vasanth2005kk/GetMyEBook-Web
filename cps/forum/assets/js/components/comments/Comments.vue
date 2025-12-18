@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="comments-list mb-3">
+        <div class="comments-list mb-2">
             <Comment v-for="comment in comments" :comment="comment" :key="comment.id"
                 @delete="removeComment" @update="updateComment"
             />

@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
+from cps.forum import db
 from flask_login import current_user, login_required
 from cps.forum.database.models import Thread, Comment
 from cps.forum.src.api.comment_schema import comments_schema, comment_schema
@@ -53,3 +54,28 @@ def show(comment_id):
         })
 
         return jsonify(comment_schema.dump(comment)), 200
+
+@comments_blueprint.route('/comments/<int:comment_id>/like', methods=["POST"])
+@login_required
+def like(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    
+    # Check if already liked
+    # We can use the dynamic relationship or query directly
+    # Since we need to delete if exists, querying the association object is better
+    from cps.forum.database.models.like import CommentLike
+    
+    existing_like = CommentLike.query.filter_by(user_id=current_user.id, comment_id=comment.id).first()
+    
+    if existing_like:
+        existing_like.delete() # Base model has delete() method
+        liked = False
+    else:
+        new_like = CommentLike(user_id=current_user.id, comment_id=comment.id)
+        new_like.save() # Base model has save() method
+        liked = True
+        
+    return jsonify({
+        "likes_count": comment.likes_count, 
+        "liked_by_current_user": liked
+    }), 200

@@ -98,7 +98,7 @@ if (dev) {
         port: 3000,
         proxy: 'http://localhost:5000/',
         files: [
-            "public/css/main.css", "public/js/main.js",
+            "cps/static/forum/css/main.css", "cps/static/forum/js/main.js",
             "apps/**/*.py"
         ],
         watch: true
