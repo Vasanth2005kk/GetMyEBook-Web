@@ -31,6 +31,7 @@ change_confirm_modal %}
   <link href="{{ url_for('static', filename='css/libs/fontawesome-free-6.6.0-web/css/all.min.css') }}" rel="stylesheet"
     media="screen">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="{{ url_for('static', filename='newStyles/css/flashmessage.css') }}" rel="stylesheet" media="screen">
 </head>
 
 <body class="{{ page }} {{ bodyClass }}{% if g.current_theme == 1 %} blur{% endif %}" data-text="{{_('Home')}}"
@@ -142,6 +143,11 @@ change_confirm_modal %}
                           class="glyphicon glyphicon-log-out"></span> <span class="hidden-sm">{{_('Logout')}}</span></a>
                     </li>
                     {% endif %}
+                    <li class="top_tasks">
+                      <a href="/forum" role="button">
+                        <span class="glyphicon glyphicon-comment"></span> {{ _('Community Forum') }}
+                      </a>
+                    </li>
                   </ul>
                 </li>
                 {% endif %}
@@ -181,12 +187,6 @@ change_confirm_modal %}
                 {% endif %}
                 {% endif %}
                 {% endif %}
-                {% if g.allow_registration and not current_user.is_authenticated and g.current_theme == 0 %}
-                <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span>
-                    {{_('Login')}}</a></li>
-                <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span>
-                    {{_('Register')}}</a></li>
-                {% endif %}
               </ul>
             </div><!--/.nav-collapse -->
           </div>
@@ -207,37 +207,6 @@ change_confirm_modal %}
         </div>
       </div>
       <div class="main-container">
-        {% if current_user.is_authenticated or g.allow_anonymous %}
-        <div class="left-side-container">
-          <nav class="sidebar-navigation">
-            <ul class="list-unstyled" id="scnd-nav" intent in-standard-append="nav.navigation">
-              <!-- <li class="nav-head hidden-xs">{{_('Browse')}}</li> -->
-              {% for element in sidebar %}
-              {% if current_user.check_visibility(element['visibility']) and element['public'] %}
-              <li id="nav_{{element['id']}}" {% if page==element['page'] %}class="active" {% endif %}>
-                <a class="nav-data" href="{{url_for(element['link'], data=element['page'], sort_param='stored')}}"><span
-                    class="glyphicon {{element['glyph']}}"></span> <span
-                    class="tooltip">{{_(element['text'])}}</span></a>
-              </li>
-              {% endif %}
-              {% endfor %}
-              <!-- {% if current_user.is_authenticated or g.allow_anonymous %}
-                <li class="nav-head hidden-xs public-shelves">{{_('Shelves')}}</li>
-                {% for shelf in g.shelves_access %}
-                  <li>
-                    <a href="{{url_for('shelf.show_shelf', shelf_id=shelf.id)}}"><span class="glyphicon glyphicon-list shelf"></span> {{shelf.name|shortentitle(40)}}{% if shelf.is_public == 1 %} {{_('(Public)')}}{% endif %}</a>
-                  </li>
-                {% endfor %}
-              {% if not current_user.is_anonymous %}
-                <li id="nav_createshelf" class="create-shelf"><a href="{{url_for('shelf.create_shelf')}}">{{_('Create a Shelf')}}</a></li>
-                <li id="nav_about" {% if page == 'stat' %}class="active"{% endif %}><a href="{{url_for('about.stats')}}"><span class="glyphicon glyphicon-info-sign"></span> {{_('About')}}</a></li>
-              {% endif %}
-              {% endif %} -->
-
-            </ul>
-          </nav>
-        </div>
-        {% endif %}
         <div class="right-side-container">
           {% block body %}{% endblock %}
           {% if pagination and (pagination.has_next or pagination.has_prev) %}
@@ -260,25 +229,10 @@ change_confirm_modal %}
             {% endif %}
             {% endfor %}
             {% if pagination.has_next %}
-            <li class="page-item page-next"><a class="page-link next" aria-label="next page" href="{{ (pagination.page + 1)|url_for_other_page
+            <li class="page-item page-next"><a class="page-link next" aria-label="next page"
+                href="{{ (pagination.page + 1)|url_for_other_page}}">{{_('Next')}} &raquo;</a></li>
             {% endif %}
-            {% for page in pagination.iter_pages() %}
-            {% if page %}
-            {% if page != pagination.page %}
-            <li class=" page-item"><a class="page-link" aria-label="to page {{ page }}"
-                  href="{{ (page)|url_for_other_page }}">{{ page }}</a></li>
-            {% else %}
-            <li class="page-item active"><a class="page-link" aria-label="to page {{ page }}"
-                href="{{ (page)|url_for_other_page }}">{{ page }}</a></li>
-            {% endif %}
-            {% else %}
-            <li class="page-item page-last-separator disabled"><a class="page-link" aria-label="">…</a></li>
-            {% endif %}
-            {% endfor %}
-            {% if pagination.has_next %}
-            <li class="page-item page-next"><a class="page-link next" aria-label="next page" href="{{ (pagination.page + 1)|url_for_other_page
-                }}">{{_('Next')}} &raquo;</a></li>
-            {% endif %}
+
           </div>
           {% endif %}
         </div>
@@ -303,6 +257,41 @@ change_confirm_modal %}
         </div>
         <div class="mobile-menu-content">
           <ul class="mobile-menu-list">
+            {% if current_user.is_authenticated %}
+            <li>
+              <a href="{{url_for('web.profile')}}">
+                <i class="fas fa-user" style="margin-right: 10px;"></i> {{current_user.name}}
+              </a>
+            </li>
+            {% if current_user.role_admin() %}
+            <li>
+              <a href="{{url_for('admin.admin')}}">
+                <i class="fas fa-cog" style="margin-right: 10px;"></i> {{_('Admin')}}
+              </a>
+            </li>
+            {% endif %}
+            <li>
+              <a href="{{url_for('web.logout')}}">
+                <i class="fas fa-sign-out-alt" style="margin-right: 10px;"></i> {{_('Logout')}}
+              </a>
+            </li>
+            <li style="border-bottom: 1px solid #eee; margin: 5px 0;"></li>
+            {% else %}
+            <li style="padding: 10px 20px; border: none;">
+              <a href="{{url_for('web.login')}}" class="mobile-auth-btn login">
+                <i class="fas fa-sign-in-alt" style="margin-right: 10px;"></i> {{_('Login')}}
+              </a>
+            </li>
+            {% if g.allow_registration %}
+            <li style="padding: 0 20px 10px 20px; border: none;">
+              <a href="{{url_for('web.register')}}" class="mobile-auth-btn register">
+                <i class="fas fa-user-plus" style="margin-right: 10px;"></i> {{_('Register')}}
+              </a>
+            </li>
+            {% endif %}
+            <li style="border-bottom: 1px solid #eee; margin: 5px 0;"></li>
+            {% endif %}
+
             {% for element in sidebar %}
             {% if current_user.check_visibility(element['visibility']) and element['public'] %}
             <li {% if page==element['page'] %}class="active" {% endif %}>
@@ -391,8 +380,7 @@ change_confirm_modal %}
     var checkBox = document.getElementById("locale");
     if ((document.cookie == '') || (document.cookie == 'get_my_ebook_locale=en')) {
       checkBox.checked = false
-    }
-    else {
+    } else {
       checkBox.checked = true
     }
     function toggleSearch() {

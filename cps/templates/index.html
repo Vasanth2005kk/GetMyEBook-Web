@@ -45,6 +45,16 @@
               data-target="#bookDetailsModal" data-remote="false" {% endif %} class="view-details-btn">View Details</a>
           </div>
 
+          {# Discussion Forum Button #}
+          {% if current_user.is_authenticated %}
+          <div class="btn-group" role="group" style="margin:20px 20px 20px 0;">
+            <a href="{{ url_for('threads.book_thread', book_id=entry.Books.id) }}" class="btn btn-primary"
+              role="button">
+              <span class="glyphicon glyphicon-comment"></span> {{ _('Discussion') }}
+            </a>
+          </div>
+          {% endif %}
+
           <div class="book-cover-container">
             <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}" {% if simple==false %}data-toggle="modal"
               data-target="#bookDetailsModal" data-remote="false" {% endif %}>
@@ -96,6 +106,16 @@
             <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}" {% if simple==false %}data-toggle="modal"
               data-target="#bookDetailsModal" data-remote="false" {% endif %} class="view-details-btn">View Details</a>
           </div>
+
+          {# Discussion Forum Button #}
+          {% if current_user.is_authenticated %}
+          <div class="btn-group" role="group" style="margin:20px 20px 20px 0;">
+            <a href="{{ url_for('threads.book_thread', book_id=entry.Books.id) }}" class="btn btn-primary"
+              role="button">
+              <span class="glyphicon glyphicon-comment"></span> {{ _('Discussion') }}
+            </a>
+          </div>
+          {% endif %}
 
           <div class="book-cover-container">
             <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}" {% if simple==false %}data-toggle="modal"
