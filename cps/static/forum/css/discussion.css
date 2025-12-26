@@ -735,7 +735,7 @@ button {
 }
 
 .mobile-sidebar-header {
-    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    /* background: linear-gradient(135deg, var(--primary-dark), var(--primary-color)); */
     color: white;
     padding: 24px 20px;
     display: flex;
@@ -751,7 +751,7 @@ button {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
-    color: white;
+    /* color: white; */
 }
 
 /* Close sidebar button - Hamburger style */
@@ -790,25 +790,30 @@ button {
 }
 
 .sidebar-menu-item {
+    padding: 15px 20px;
+    color: #333;
+    text-decoration: none;
+    font-weight: 900;
+    font-size: 16px;
+    transition: all 0.3s;
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 14px 16px;
     margin-bottom: 8px;
     border-radius: 10px;
-    color: var(--text-dark);
-    text-decoration: none;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
     cursor: pointer;
-    background: white;
-    border: 1px solid var(--border-color);
     position: relative;
     overflow: hidden;
 }
 
-.sidebar-menu-item::before {
+.sidebar-menu-item:hover {
+    text-decoration: none;
+    background-color: #f9f9f9;
+    color: #ff7174;
+    padding-left: 25px;
+}
+
+/* .sidebar-menu-item::before {
     content: '';
     position: absolute;
     left: 0;
@@ -829,16 +834,15 @@ button {
     transform: translateX(8px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
     border-color: var(--primary-color);
-}
+} */
 
-.sidebar-menu-item:hover i {
+/* .sidebar-menu-item:hover i {
     color: white;
     transform: scale(1.2);
-}
+} */
 
 .sidebar-menu-item i {
     font-size: 1.2rem;
-    color: var(--primary-color);
     transition: all 0.3s ease;
     min-width: 24px;
     text-align: center;
@@ -855,61 +859,16 @@ button {
 /* Info items (non-clickable) */
 .sidebar-menu-item.sidebar-info {
     cursor: default;
-    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-    border-color: #bae6fd;
 }
 
-.sidebar-menu-item.sidebar-info:hover {
+/* .sidebar-menu-item.sidebar-info:hover {
     transform: none;
     color: var(--text-dark);
 }
 
 .sidebar-menu-item.sidebar-info::before {
     display: none;
-}
-
-.sidebar-menu-item.sidebar-info i {
-    color: #0284c7;
-}
-
-/* Edit button styling */
-.sidebar-menu-item.sidebar-edit {
-    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border-color: #86efac;
-}
-
-.sidebar-menu-item.sidebar-edit i {
-    color: #16a34a;
-}
-
-.sidebar-menu-item.sidebar-edit:hover {
-    background: linear-gradient(90deg, #16a34a, #22c55e);
-    color: white;
-}
-
-.sidebar-menu-item.sidebar-edit:hover i {
-    color: white;
-}
-
-/* Delete button styling */
-.sidebar-menu-item.sidebar-delete {
-    background: linear-gradient(135deg, #fef2f2, #fee2e2);
-    border-color: #fca5a5;
-    width: 100%;
-}
-
-.sidebar-menu-item.sidebar-delete i {
-    color: #dc2626;
-}
-
-.sidebar-menu-item.sidebar-delete:hover {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
-    color: white;
-}
-
-.sidebar-menu-item.sidebar-delete:hover i {
-    color: white;
-}
+} */
 
 /* Divider */
 .sidebar-divider {

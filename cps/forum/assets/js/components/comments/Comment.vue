@@ -537,7 +537,7 @@
         .comment-icon img{
             width: 30px;
             height: 30px;
-
+            margin-top: 30%;
         }
     }
 </style>
