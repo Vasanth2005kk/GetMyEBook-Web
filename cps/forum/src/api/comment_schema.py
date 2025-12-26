@@ -11,6 +11,8 @@ class CommentSchema(ma.SQLAlchemyAutoSchema):
     owner = ma.Nested(UserSchema)
     likes_count = fields.Integer(dump_only=True)
     liked_by_current_user = fields.Boolean(dump_only=True)
+    current_user_reaction = fields.String(dump_only=True)
+    top_reaction = fields.String(dump_only=True)
 
     class Meta:
         model = Comment

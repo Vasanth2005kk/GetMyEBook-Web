@@ -33,12 +33,10 @@ export default {
                 users.set(window.Auth.id, window.Auth);
             }
             this.comments.forEach(c => {
-                
                 if (c.owner && c.user_id) {
                     users.set(c.user_id, c.owner);
                 }
             });
-            console.log("user values :",users.values())
             return Array.from(users.values());
         }
     },
@@ -49,8 +47,7 @@ export default {
         fetchComments() {
              axios.get(`/forum/api/threads/${this.id}/comments`)
                 .then(({data}) => this.comments = data.reverse())
-        
-                console.log("all Comments :",this.comments)
+                .catch(err => console.error("Error fetching comments:", err));
 
         },
         handleNewComment(comment) {
@@ -83,12 +80,24 @@ export default {
     .forum-chat-box {
         position: fixed;
         bottom: 0;
-        width: 55%;
+        width: 100%;
         background: #fff;
         padding: 12px;
+        margin-left: 0.5%;
     }
     .comments-list{
+        padding: 2rem;
         margin-bottom: 3.4rem !important;
 
     }
+    /* 📱 Mobile Responsive */
+    @media (max-width: 768px) {
+        .comments-list {
+            padding: 0.5rem;
+        }
+        .forum-chat-box{
+            min-height: 50px;
+        }
+    }
+
 </style>

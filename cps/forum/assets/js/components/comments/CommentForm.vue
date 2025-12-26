@@ -79,7 +79,7 @@
         </div>
     </form>
 
-    <div v-else class="text-center small text-muted">
+    <div v-else class="show-login-user">
         <span v-html="restrictionMessage"></span>
     </div>
 </div>
@@ -285,7 +285,7 @@
     align-items: center;
 
     /* Size */
-    width: 100%;
+    width: 59%;
     min-height: 72px;            /* height increase */
     
     /* Inside spacing */
@@ -467,6 +467,17 @@
 
 .emoji-item:hover {
     background: #f3f4f6;
+}
+
+.show-login-user{
+    text-align: center;
+    font-size: 0.875rem;
+    color: #6c757d; 
+}
+@media (max-width: 768px) {
+    .chat-input-box{
+        width: 100%;
+    }
 }
 
 </style>

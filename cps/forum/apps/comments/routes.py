@@ -60,22 +60,56 @@ def show(comment_id):
 def like(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     
-    # Check if already liked
-    # We can use the dynamic relationship or query directly
-    # Since we need to delete if exists, querying the association object is better
     from cps.forum.database.models.like import CommentLike
     
+    data = request.get_json(silent=True) or {}
+    
+    # Check for explicit reaction type in payload
+    # Frontend might send: reaction_type, type, or reaction
+    # Value can be a string ('love') or None (explicit unlike)
+    has_payload = False
+    reaction_val = None
+    
+    for key in ['reaction_type', 'type', 'reaction']:
+        if key in data:
+            has_payload = True
+            reaction_val = data[key]
+            break
+            
     existing_like = CommentLike.query.filter_by(user_id=current_user.id, comment_id=comment.id).first()
     
-    if existing_like:
-        existing_like.delete() # Base model has delete() method
-        liked = False
+    if has_payload:
+        if reaction_val:
+            # Upsert (Create or Update)
+            if existing_like:
+                existing_like.reaction_type = reaction_val
+                existing_like.save()
+            else:
+                new_like = CommentLike(user_id=current_user.id, comment_id=comment.id, reaction_type=reaction_val)
+                new_like.save()
+            liked = True
+            current_type = reaction_val
+        else:
+            # Explicit unlike (null sent)
+            if existing_like:
+                existing_like.delete()
+            liked = False
+            current_type = None
     else:
-        new_like = CommentLike(user_id=current_user.id, comment_id=comment.id)
-        new_like.save() # Base model has save() method
-        liked = True
+        # Legacy Toggle (No payload)
+        if existing_like:
+            existing_like.delete()
+            liked = False
+            current_type = None
+        else:
+            # Default to 'like'
+            new_like = CommentLike(user_id=current_user.id, comment_id=comment.id, reaction_type='like')
+            new_like.save()
+            liked = True
+            current_type = 'like'
         
     return jsonify({
         "likes_count": comment.likes_count, 
-        "liked_by_current_user": liked
+        "liked_by_current_user": liked,
+        "current_user_reaction": current_type
     }), 200

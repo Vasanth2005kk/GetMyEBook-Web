@@ -6,6 +6,7 @@ class CommentLike(Base):
     
     user_id = db.Column(db.Integer, nullable=False)
     comment_id = db.Column(db.Integer, db.ForeignKey("forum_comments.id"), nullable=False)
+    reaction_type = db.Column(db.String(20), default='like', nullable=False)
 
     __table_args__ = (
         db.UniqueConstraint('user_id', 'comment_id', name='unique_user_comment_like'),

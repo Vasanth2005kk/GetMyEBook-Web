@@ -4,21 +4,132 @@
 
 {% block main %}
 <link rel="stylesheet" href="{{ url_for('static', filename='forum/css/discussion.css') }}">
+<!-- Mobile Sidebar Menu -->
+<div class="mobile-sidebar" id="mobileSidebar">
+    <div class="mobile-sidebar-header">
+        <h2>Menu</h2>
+        <button class="menu active" id="closeSidebar">
+            <span class="menu__inner"></span>
+        </button>
+    </div>
+
+    <div class="mobile-sidebar-content">
+        <!-- Home Link -->
+        <a href="/" class="sidebar-menu-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+
+        <!-- Admin Link (if authenticated) -->
+        {% if current_user.is_authenticated and current_user.role == 1 %}
+        <a href="/admin" class="sidebar-menu-item">
+            <i class="fas fa-user-shield"></i>
+            <span>Admin Panel</span>
+        </a>
+        {% endif %}
+
+        <!-- User Profile -->
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('web.profile', user_id=current_user.id) }}" class="sidebar-menu-item">
+            <i class="fas fa-user"></i>
+            <span>{{ current_user.name }}</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('web.login') }}" class="sidebar-menu-item">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Login</span>
+        </a>
+        {% endif %}
+
+        <!-- Time Display -->
+        <div class="sidebar-menu-item sidebar-info">
+            <i class="fas fa-clock"></i>
+            <span id="currentTime"></span>
+        </div>
+
+        <!-- Divider -->
+        <div class="sidebar-divider"></div>
+
+        <!-- Thread Actions (Edit/Delete) -->
+        {% if current_user.is_authenticated and thread.is_owner(current_user) %}
+        <div class="sidebar-section-title">Thread Actions</div>
+
+        <a href="{{ url_for('threads.edit', category_slug=thread.category.slug, thread_slug=thread.slug) }}"
+            class="sidebar-menu-item sidebar-edit">
+            <i class="fas fa-edit"></i>
+            <span>Edit Thread</span>
+        </a>
+
+        <button class="sidebar-menu-item sidebar-delete" id="deleteThreadBtn">
+            <i class="fas fa-trash"></i>
+            <span>Delete Thread</span>
+        </button>
+        {% endif %}
+
+        <!-- Book Info -->
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-title">Discussion Info</div>
+
+        <div class="sidebar-menu-item sidebar-info">
+            <i class="fas fa-tag"></i>
+            <span>{{ thread.category.name }}</span>
+        </div>
+
+        <div class="sidebar-menu-item sidebar-info">
+            <i class="fas fa-eye"></i>
+            <span>{{ thread.views_count }} views</span>
+        </div>
+
+        <div class="sidebar-menu-item sidebar-info">
+            <i class="fas fa-comments"></i>
+            <span>{{ thread.comments_count }} comments</span>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <div class="discussion-container" style="position: relative;">
-    <!-- left Side: Discussion (60%) -->
+    <!-- left Side: Book Reader (40%) -->
+    <div class="book-reader-panel">
+        <div class="book-reader-header">
+            <h2>
+                <i class="fas fa-book-open"></i>
+                {% if book %}{{ book.title }}{% else %}Book Reader{% endif %}
+            </h2>
+        </div>
+        <div class="book-reader-content">
+            {% if book and book_format %}
+            <iframe src="{{ url_for('web.read_book', book_id=book.id, book_format=book_format) }}"
+                class="book-reader-iframe" title="{{ book.title }}">
+            </iframe>
+            {% else %}
+            <div class="no-book-message">
+                <i class="fas fa-book"></i>
+                <h3>No Book Linked</h3>
+                <p>This discussion doesn't have a linked book to read.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- right Side: Discussion (60%) -->
     <div class="discussion-panel">
         <!-- Main Discussion Feed -->
         <div class="discussion-feed">
             <!-- Thread Header -->
             <div class="thread-header-card">
-                <a href="/" class="back-home" role="button">
+                <!-- <a href="/" class="back-home" role="button">
                     <i class="fa-solid fa-house"></i>
-                </a>
+                </a> -->
                 <div class="discussion-book-cover">
-                    <img src="{{ url_for('web.get_cover', book_id=thread.book_id, resolution='og') }}"  alt="Book Cover">
+                    <img src="{{ url_for('web.get_cover', book_id=thread.book_id, resolution='og') }}" alt="Book Cover">
                 </div>
                 <div class="discussion-header">
+                    <button class="menu" id="menuBtn">
+                        <span class="menu__inner"></span>
+                    </button>
                     <h1 class="thread-title">{{ thread.title }}</h1>
 
                     <div class="thread-meta">
@@ -35,7 +146,7 @@
                     </div>
 
                     <div class="thread-content">
-                        {{ thread.content|markdown }}
+                        {{ thread.content | markdown }}
                     </div>
 
                     {% if current_user.is_authenticated and thread.is_owner(current_user) %}
@@ -60,11 +171,10 @@
 
             <!-- Comments Section -->
             <div class="comments-section">
-                <h2 class="comments-header" style="display: none;">
+                <!-- <h2 class="comments-header" style="display: none;">
                     <i class="fas fa-comments"></i>
                     Chat ({{ thread.comments_count }} messages)
-                </h2>
-
+                </h2> -->
                 <comments :id="{{ thread.id }}"></comments>
             </div>
         </div>
@@ -151,29 +261,9 @@
             </div>
         </div>
     </div>
-    <!-- Right Side: Book Reader (40%) -->
-    <div class="book-reader-panel">
-        <div class="book-reader-header">
-            <h2>
-                <i class="fas fa-book-open"></i>
-                {% if book %}{{ book.title }}{% else %}Book Reader{% endif %}
-            </h2>
-        </div>
-        <div class="book-reader-content">
-            {% if book and book_format %}
-            <iframe src="{{ url_for('web.read_book', book_id=book.id, book_format=book_format) }}"
-                class="book-reader-iframe" title="{{ book.title }}">
-            </iframe>
-            {% else %}
-            <div class="no-book-message">
-                <i class="fas fa-book"></i>
-                <h3>No Book Linked</h3>
-                <p>This discussion doesn't have a linked book to read.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
 </div>
+
+
 
 <!-- <style>
     /* Additional inline styles for Vue component integration */

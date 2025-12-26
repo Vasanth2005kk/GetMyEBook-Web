@@ -15,6 +15,8 @@
     <link href="{{ url_for('static', filename='newStyles/css/flashmessage.css') }}" rel="stylesheet" media="screen">
     <script src="{{ url_for('static', filename='forum/js/flash.js') }}"></script>
     <script src="{{ url_for('static', filename='forum/js/main.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='forum/js/mobile-sidebar.js') }}" defer></script>
+
     {% if current_user.is_authenticated %}
     <script>
         window.Auth = {{ current_user.json_attributes() | tojson }}

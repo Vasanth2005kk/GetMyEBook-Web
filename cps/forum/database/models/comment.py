@@ -25,6 +25,33 @@ class Comment(Base):
         return self.likes.filter_by(user_id=current_user.id).first() is not None
 
     @property
+    def current_user_reaction(self):
+        from flask_login import current_user
+        if not current_user.is_authenticated:
+            return None
+        like = self.likes.filter_by(user_id=current_user.id).first()
+        return like.reaction_type if like else None
+
+    @property
+    def top_reaction(self):
+        """Returns the most common reaction type for this comment"""
+        from sqlalchemy import func
+        from .like import CommentLike
+        # This relies on the dynamic loader
+        if self.likes_count == 0:
+            return None
+        
+        # Get reaction with highest count
+        try:
+            top = self.likes.with_entities(CommentLike.reaction_type, func.count(CommentLike.reaction_type).label('cnt'))\
+                .group_by(CommentLike.reaction_type)\
+                .order_by(func.count(CommentLike.reaction_type).desc())\
+                .first()
+            return top.reaction_type if top else None
+        except Exception:
+            return 'like' # Fallback
+
+    @property
     def owner(self):
         """Load user from main users table"""
         if not self.user_id:
