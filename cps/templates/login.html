@@ -15,8 +15,8 @@
     <div class="form-container">
       <!-- ========== LOGIN FORM ========== -->
       <div id="loginForm">
-        <h1>Sign In</h1>
-        <p class="subtitle">Wellcome Back</p>
+        <h1>{{_('Sign In')}}</h1>
+        <p class="subtitle">{{_('Wellcome Back')}}</p>
 
         <form method="POST" role="form">
           <input type="hidden" name="next" value="{{next_url}}">
@@ -43,7 +43,7 @@
               <input type="checkbox" id="remember" name="remember_me" checked>
               <label for="remember" class="checkbox-label">{{_('Remember Me')}}</label>
             </div> -->
-            <a href="#" class="forgot-link">Forgot password</a>
+            <a href="#" class="forgot-link">{{_('Forgot password')}}</a>
           </div>
 
           <button type="submit" name="submit" class="btn-primary">{{_('Login')}}</button>
@@ -60,12 +60,12 @@
                 <path fill="#EA4335"
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
-              Sign in with Google
+              {{_('Sign in with Google')}}
             </button>
           </a>
           <p class="footer-text">
-            Don't have an account?
-            <a href="/register" class="footer-link">Sign up</a>
+            {{_('Don\'t have an account?')}}
+            <a href="/register" class="footer-link">{{_('Sign up')}}</a>
           </p>
         </form>
       </div>

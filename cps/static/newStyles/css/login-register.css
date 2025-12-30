@@ -6,7 +6,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-    height: 100vh;
+    /* height: 100vh; */
     background-color: #ffffff;
 }
 
@@ -23,11 +23,9 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 60px 80px;
+    align-items: center;
     background: #ffffff;
     max-width: 45%;
-    position: relative;
-    left: 5%;
 }
 
 .logo {
@@ -49,7 +47,6 @@ body {
 }
 
 .form-container {
-    max-width: 400px;
     width: 100%;
 }
 
@@ -222,12 +219,21 @@ input[type="checkbox"] {
 
 /* ========== ENHANCED RESPONSIVE DESIGN ========== */
 
-/* Tablet Devices (769px - 968px) */
-@media (max-width: 968px) and (min-width: 769px) {
+/* Tablet (769px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .right-column {
+        display: none;
+    }
+
     .left-column {
-        padding: 50px 60px;
-        max-width: 50%;
-        left: 0;
+        padding: 40px;
+        max-width: 100%;
+        align-items: center;
+    }
+
+    .form-container {
+        max-width: 500px;
+        /* Prevent form from being too wide on tablet */
     }
 
     .logo {
@@ -237,15 +243,26 @@ input[type="checkbox"] {
 
     h1 {
         font-size: 28px;
+        text-align: center;
+    }
+
+    .subtitle {
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+
+    .form-options {
+        flex-direction: row;
+        justify-content: space-between;
     }
 }
 
-/* Mobile & Tablet (up to 768px) */
+/* Mobile & Small Tablet (up to 768px) */
 @media (max-width: 768px) {
     .log-container {
         flex-direction: column;
-        height: auto;
-        /* min-height: 100vh; */
+        height: 80dvh;
         overflow-y: auto;
     }
 
@@ -255,19 +272,19 @@ input[type="checkbox"] {
 
     .left-column {
         max-width: 100%;
-        padding: 40px 24px;
-        left: 0;
-        justify-content: flex-start;
+        padding: 30px 20px;
+        justify-content: center;
     }
 
     .logo {
         font-size: 32px;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
         justify-content: center;
     }
 
     .form-container {
         max-width: 100%;
+        width: 100%;
     }
 
     h1 {
@@ -294,35 +311,34 @@ input[type="checkbox"] {
 /* Small Mobile Devices (up to 480px) */
 @media (max-width: 480px) {
     .left-column {
-        padding: 10px;
-        margin: 0;
-        height: auto;
+        padding: 20px 16px;
     }
 
     .logo {
         font-size: 28px;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
 
     h1 {
         font-size: 24px;
-        margin: 0;
     }
 
     .subtitle {
         font-size: 13px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .form-group {
-        margin-bottom: 16px;
+        margin-bottom: 15px;
     }
 
     input[type="email"],
     input[type="password"],
     input[type="text"] {
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: 12px;
+        /* Comfortable touch target */
+        font-size: 16px;
+        /* Prevent zoom on iOS */
     }
 
     .btn-primary,
@@ -330,12 +346,11 @@ input[type="checkbox"] {
         padding: 12px;
         font-size: 14px;
         margin-bottom: 12px;
-
     }
 
     .form-options {
-        flex-direction: column;
         align-items: stretch;
+        /* Full width options */
     }
 
     .checkbox-group {
@@ -344,37 +359,44 @@ input[type="checkbox"] {
 
     .forgot-link {
         align-self: center;
-        margin-top: 10px;
+        /* Center link on very small screens */
+        margin-top: 5px;
+    }
+}
+
+/* Extra Small (up to 360px) */
+@media (max-width: 360px) {
+    .logo-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .logo {
+        font-size: 22px;
+        gap: 8px;
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+
+    .footer-text {
+        font-size: 12px;
     }
 }
 
 /* Large Desktop Screens (min-width: 1200px) */
-@media (min-width: 1200px) {
+@media (min-width: 1020px) {
     .left-column {
-        max-width: 40%;
+        max-width: 45%;
+        /* slightly wider on large screens */
+        padding: 40px;
     }
 
     .form-container {
+        /* max-width: 480px; */
+        /* Let it fill the 45% container */
+        width: 100%;
         max-width: 450px;
-    }
-}
-
-/* Very Small Mobile Devices (up to 360px) */
-@media (max-width: 360px) {
-    .left-column {
-        padding: 20px 16px;
-    }
-
-    .logo {
-        font-size: 24px;
-        margin-bottom: 25px;
-    }
-
-    h1 {
-        font-size: 22px;
-    }
-
-    .footer-text {
-        font-size: 13px;
     }
 }

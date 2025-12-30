@@ -923,6 +923,8 @@ h2 {
   width: 100%;
   padding: 0;
   margin: 0;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .search-form-styled {
@@ -3128,43 +3130,44 @@ h2 {
   .modal-content .product-meta-info {
     display: none;
   }
+}
 
-  /* Mobile Modal Specifics */
-  @media (max-width: 576px) {
-    .modal-dialog {
-      margin: 10px;
-      max-width: 100%;
-      width: auto;
-    }
-
-    .modal-content {
-      padding: 15px !important;
-      border-radius: 12px;
-    }
-
-    .modal-content .product-img-box img {
-      max-height: 140px;
-      /* Even smaller on mobile */
-    }
-
-    .modal-content .product-title {
-      font-size: 16px;
-    }
-
-    /* Ensure buttons in mobile modal are side-by-side where possible */
-    .modal-content .product-actions {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      display: grid;
-    }
-
-    .modal-content .vs-btn,
-    .modal-content .discussion-btn,
-    .modal-content .btn-group .vs-btn {
-      padding: 6px 8px !important;
-      font-size: 12px !important;
-      height: 36px !important;
-      min-height: 36px !important;
-      width: 100% !important;
-    }
+/* Mobile Modal Specifics */
+@media (max-width: 576px) {
+  .modal-dialog {
+    margin: 10px;
+    max-width: 100%;
+    width: auto;
   }
+
+  .modal-content {
+    padding: 15px !important;
+    border-radius: 12px;
+  }
+
+  .modal-content .product-img-box img {
+    max-height: 140px;
+    /* Even smaller on mobile */
+  }
+
+  .modal-content .product-title {
+    font-size: 16px;
+  }
+
+  /* Ensure buttons in mobile modal are side-by-side where possible */
+  .modal-content .product-actions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    display: grid;
+  }
+
+  .modal-content .vs-btn,
+  .modal-content .discussion-btn,
+  .modal-content .btn-group .vs-btn {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    width: 100% !important;
+  }
+}

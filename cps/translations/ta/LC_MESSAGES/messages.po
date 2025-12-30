@@ -669,13 +669,13 @@ msgid "Success! You are now logged in as: %(nickname)s"
 msgstr "வெற்றி! நீங்கள் இப்போது இவ்வாறு உள்நுழைந்துள்ளீர்கள்: %(nickname)s"
 
 msgid "Link to %(oauth)s Succeeded"
-msgstr "%(auth)s க்கான இணைப்பு வெற்றியடைந்தது"
+msgstr "%(oauth)s க்கான இணைப்பு வெற்றியடைந்தது"
 
 msgid "Login failed, No User Linked With OAuth Account"
 msgstr "உள்நுழைவு தோல்வியடைந்தது, OAuth கணக்குடன் எந்த பயனரும் இணைக்கப்படவில்லை"
 
 msgid "Unlink to %(oauth)s Succeeded"
-msgstr "%(auth)sக்கான இணைப்பை நீக்குதல் வெற்றியடைந்தது"
+msgstr "%(oauth)sக்கான இணைப்பை நீக்குதல் வெற்றியடைந்தது"
 
 msgid "Show Ratings Section"
 msgstr "மதிப்பீடுகள் பகுதியைக் காட்டு"
@@ -2371,4 +2371,56 @@ msgstr "புத்தக விவரங்கள்"
 msgid "Previous"
 msgstr "முந்தைய"
 
+msgid "Forgot password"
+msgstr "கடவுச்சொல்லை மறந்துவிட்டேன்"
 
+msgid "Sign In"
+msgstr "உள்நுழையவும்"
+
+msgid "Wellcome Back"
+msgstr "மீண்டும் வருக"
+
+msgid "Sign in with Google"
+msgstr "கூகிள் மூலம் உள்நுழையவும்"
+
+msgid "Don't have an account?"
+msgstr "உங்களுக்கு கணக்கு இல்லையா?"
+
+msgid "Sign Up"
+msgstr "பதிவு செய்யவும்"
+
+msgid "Email address"
+msgstr "மின்னஞ்சல் முகவரி"
+
+msgid "Enter your email"
+msgstr "உங்கள் மின்னஞ்சலை உள்ளிடவும்"
+
+msgid "Create a password"
+msgstr "கடவுச்சொல்லை உருவாக்கவும்"
+
+msgid "Confirm password"
+msgstr "கடவுச்சொல்லை உறுதிப்படுத்தவும்"
+
+msgid "Confirm your password"
+msgstr "உங்கள் கடவுச்சொல்லை உறுதிப்படுத்தவும்"
+
+msgid "Sign up with Google"
+msgstr "கூகிள் மூலம் பதிவு செய்யவும்"
+
+msgid "Already have an account?"
+msgstr "ஏற்கனவே கணக்கு உள்ளதா?"
+
+msgid "Sign in"
+msgstr "உள்நுழையவும்"
+
+msgid "Sign up"
+msgstr "பதிவு செய்யவும்"
+
+msgid "Start your learning journey today"
+msgstr "உங்கள் கற்றல் பயணத்தை இன்றே தொடங்குங்கள்"
+
+msgid ""
+msgstr ""
+
+msgid ""
+msgstr ""
