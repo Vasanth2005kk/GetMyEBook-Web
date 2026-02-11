@@ -1,0 +1,45 @@
+<div class="flash-container">
+    {% for category, message in get_flashed_messages(with_categories=True) %}
+
+    {% if category == "danger" or category == "error" %}
+    <div class="flash-message flash-danger" data-flash-type="error">
+        <div class="flash-content">
+            <span class="flash-icon"><i class="fas fa-exclamation-circle"></i></span>
+            <span class="flash-text">{{ message }}</span>
+        </div>
+        <div class="flash-progress"></div>
+    </div>
+    {% endif %}
+
+    {% if category == "info" %}
+    <div class="flash-message flash-info" data-flash-type="info">
+        <div class="flash-content">
+            <span class="flash-icon"><i class="fas fa-info-circle"></i></span>
+            <span class="flash-text">{{ message }}</span>
+        </div>
+        <div class="flash-progress"></div>
+    </div>
+    {% endif %}
+
+    {% if category == "warning" %}
+    <div class="flash-message flash-warning" data-flash-type="warning">
+        <div class="flash-content">
+            <span class="flash-icon"><i class="fas fa-exclamation-triangle"></i></span>
+            <span class="flash-text">{{ message }}</span>
+        </div>
+        <div class="flash-progress"></div>
+    </div>
+    {% endif %}
+
+    {% if category == "success" %}
+    <div class="flash-message flash-success" data-flash-type="success">
+        <div class="flash-content">
+            <span class="flash-icon"><i class="fas fa-check-circle"></i></span>
+            <span class="flash-text">{{ message }}</span>
+        </div>
+        <div class="flash-progress"></div>
+    </div>
+    {% endif %}
+
+    {% endfor %}
+</div>

@@ -198,6 +198,15 @@ class TaskEmail(CalibreTask):
     def send_standard_email(self, msg):
         use_ssl = int(self.settings.get('mail_use_ssl', 0))
         timeout = 600  # set timeout to 5mins
+        
+        # Validate mail server configuration
+        mail_server = self.settings.get("mail_server", "").strip()
+        if not mail_server or mail_server in ["mail.example.org", "mail.example.com", "localhost"]:
+            raise Exception(
+                "Email server is not configured properly. "
+                "Please configure a valid SMTP server in Admin → Email Server Settings. "
+                "Current server: '{}'".format(mail_server)
+            )
 
         # on python3 debugoutput is caught with overwritten _print_debug function
         log.debug("Start sending e-mail")
@@ -211,18 +220,41 @@ class TaskEmail(CalibreTask):
         # link to logginglevel
         if logger.is_debug_enabled():
             self.asyncSMTP.set_debuglevel(1)
+        
+        # DEBUG: Check if password is available
+        has_enc_pass = bool(self.settings.get("mail_password_e"))
+        has_plain_pass = bool(self.settings.get("mail_password"))
+        log.debug(f"Mail Settings Debug - Enc Pass: {has_enc_pass}, Plain Pass: {has_plain_pass}, Server: {self.settings.get('mail_server')}")
+
+        # Proper EHLO/HELO before STARTTLS
+        self.asyncSMTP.ehlo()
+        
         if use_ssl == 1:
             context = ssl.create_default_context()
             self.asyncSMTP.starttls(context=context)
-        if self.settings["mail_password_e"]:
-            self.asyncSMTP.login(str(self.settings["mail_login"]), str(self.settings["mail_password_e"]))
+            # Re-identify after STARTTLS
+            self.asyncSMTP.ehlo()
+            
+        # Try both password fields - locally saved config might have one or the other
+        password = self.settings.get("mail_password_e") or self.settings.get("mail_password")
+        if password:
+            self.asyncSMTP.login(str(self.settings["mail_login"]), str(password))
+        else:
+             log.warning("No password found in settings, attempting anonymous connection (which likely failed: 530 Authentication Required)")
+             # We continue to let it fail with a clear error if auth is mandatory
 
         # Convert message to something to send
         fp = StringIO()
         gen = Generator(fp, mangle_from_=False)
         gen.flatten(msg)
 
-        self.asyncSMTP.sendmail(self.settings["mail_from"], self.recipient, fp.getvalue())
+        try:
+            self.asyncSMTP.sendmail(self.settings["mail_from"], self.recipient, fp.getvalue())
+        except smtplib.SMTPSenderRefused as e:
+             if e.smtp_code == 530:
+                 log.error("SMTP Error 530: Authentication Required. Password likely missing or invalid.")
+                 raise Exception("SMTP Authentication Required (530). Please re-enter and SAVE your SMTP password in Admin > Edit Mail Settings. If this persists, the encryption key may be lost on restart.")
+             raise e
         self.asyncSMTP.quit()
         self._handleSuccess()
         log.debug("E-mail send successfully")

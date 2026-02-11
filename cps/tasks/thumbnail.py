@@ -308,7 +308,7 @@ class TaskGenerateSeriesThumbnails(CalibreTask):
             .join(db.books_series_link) \
             .join(db.Books) \
             .filter(db.Books.has_cover == 1) \
-            .group_by(text('books_series_link.series')) \
+            .group_by(db.Series.id) \
             .having(func.count('book_series_link') > 3) \
             .all()
 

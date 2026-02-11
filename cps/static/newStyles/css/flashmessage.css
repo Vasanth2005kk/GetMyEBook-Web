@@ -1,0 +1,315 @@
+/* Flash Message Styles with Loading Animation */
+
+.flash-messages-container {
+  /* Use fixed positioning to avoid breaking flex layout */
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10001;
+  width: 100%;
+  max-width: 420px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.flash-message {
+  position: relative;
+  padding: 18px 40px 18px 20px;
+  margin-bottom: 0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  overflow: visible;
+  animation: slideInRight 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  transition: all 0.3s ease;
+  min-height: 60px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.flash-message.flash-hiding {
+  animation: slideOutRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  opacity: 0;
+  transform: translateX(40px);
+}
+
+/* Flash Message Types */
+.flash-message.success {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
+  border-left: 5px solid #059669;
+  color: #ffffff;
+}
+
+.flash-message.error,
+.flash-message.danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%);
+  border-left: 5px solid #dc2626;
+  color: #ffffff;
+}
+
+.flash-message.warning {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.95) 0%, rgba(245, 158, 11, 0.95) 100%);
+  border-left: 5px solid #f59e0b;
+  color: #ffffff;
+}
+
+.flash-message.info {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
+  border-left: 5px solid #2563eb;
+  color: #ffffff;
+}
+
+/* Flash Message Content */
+.flash-content {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.flash-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  animation: iconPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.flash-text {
+  flex: 1;
+}
+
+/* Close button - auto-dismiss after 90 seconds */
+.flash-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.flash-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+/* Progress Bar */
+.flash-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  width: 100%;
+  transform-origin: left;
+  animation: progressBar 10s linear forwards;
+}
+
+.flash-message.success .flash-progress {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.flash-message.error .flash-progress,
+.flash-message.danger .flash-progress {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.flash-message.warning .flash-progress {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.flash-message.info .flash-progress {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Animations */
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideOutUp {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+}
+
+@keyframes progressBar {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes iconPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(100px) scale(0.9);
+  }
+}
+
+/* Pulse Animation for Icons */
+.flash-icon {
+  animation: iconPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .flash-messages-container {
+    bottom: 20px;
+    right: 0px;
+  }
+
+  .flash-message {
+    padding: 16px 40px 16px 16px;
+    min-height: auto;
+  }
+
+  .flash-content {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .flash-icon {
+    font-size: 20px;
+  }
+
+  .flash-close {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    top: 10px;
+    right: 10px;
+  }
+}
+
+
+@media (max-width: 576px) {
+  .flash-messages-container {
+    display: flex;
+    flex-direction: column;
+    margin: 10px auto;
+    padding: 0 10px;
+    max-width: 100%;
+    width: 80%;
+  }
+
+  .flash-message {
+    padding: 14px 36px 14px 14px;
+    min-height: auto;
+  }
+
+  .flash-content {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .flash-icon {
+    font-size: 18px;
+  }
+
+  .flash-close {
+    width: 24px;
+    height: 24px;
+    font-size: 13px;
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* Remove old Bootstrap alert styles when using new flash messages */
+.flash-message.alert {
+  border: none;
+  border-radius: 12px;
+}
+
+/* Hover effect */
+.flash-message:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}

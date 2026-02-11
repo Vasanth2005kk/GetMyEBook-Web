@@ -1,277 +1,592 @@
-{% from 'modal_dialogs.html' import restrict_modal, delete_book, filechooser_modal, delete_confirm_modal, change_confirm_modal %}
+{% from 'modal_dialogs.html' import restrict_modal, delete_book, filechooser_modal, delete_confirm_modal,
+change_confirm_modal %}
+{% from 'modal_dialogs.html' import restrict_modal, delete_book, filechooser_modal, delete_confirm_modal,
+change_confirm_modal %}
 {% import 'image.html' as image %}
 <!DOCTYPE html>
 <html lang="{{ current_user.locale }}">
-  <head>
-    <title>GetMyEbook</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    {% if g.google_site_verification|length > 0 %}
-      <meta name="google-site-verification" content="{{g.google_site_verification}}">
-    {% endif %}
-    <!-- Bootstrap -->
-    <!-- <link rel="apple-touch-icon" sizes="140x140" href="{{ url_for('static', filename='favicon.ico') }}"> -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/48x48 px.svg') }}">
-    <link href="{{ url_for('static', filename='css/libs/bootstrap.min.css') }}" rel="stylesheet" media="screen">
-    {% block header %}{% endblock %}
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" media="screen">
-    <link href="{{ url_for('static', filename='css/update_style.css') }}" rel="stylesheet" media="screen">
-    <link href="{{ url_for('static', filename='css/upload.css') }}" rel="stylesheet" media="screen">
-    {% if g.current_theme == 1 %}
-       <link href="{{ url_for('static', filename='css/caliBlur.css') }}" rel="stylesheet" media="screen">
-       <link href="{{ url_for('static', filename='css/caliBlur_override.css') }}" rel="stylesheet" media="screen">
-    {% endif %}
-    <link href="{{ url_for('static', filename='css/libs/fontawesome-free-6.6.0-web/css/all.min.css') }}" rel="stylesheet" media="screen">
-  </head>
-  <body class="{{ page }} {{ bodyClass }}{% if g.current_theme == 1 %} blur{% endif %}" data-text="{{_('Home')}}" data-textback="{{_('Back')}}">
-    <!-- Static navbar -->
-    <div class="app-container">
-      <div class="navbar-default navbar-static-top" role="navigation">
-        <div class="header-nav-style">
-          <div class="logo-sitename-container">
-            <!-- <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-              <span class="sr-only">{{_('Toggle Navigation')}}</span>
-              <span class="icon-bar"></span>
-              <span class="icon-bar"></span>
-              <span class="icon-bar"></span>
-            </button> -->
-            <!-- <a class="navbar-brand" href="{{url_for('web.index')}}">{{instance}}</a> -->
-            <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 50px;">
-            <span class="sitename"><span class="app-name-part1">GetMy</span><span class="app-name-part2">Ebook</span></span>
+
+<head>
+  <title>GetMyEbook</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  {% if g.google_site_verification|length > 0 %}
+  <meta name="google-site-verification" content="{{g.google_site_verification}}">
+  {% endif %}
+  <!-- Bootstrap -->
+  <!-- <link rel="apple-touch-icon" sizes="140x140" href="{{ url_for('static', filename='favicon.ico') }}"> -->
+  <link rel="shortcut icon" href="{{ url_for('static', filename='img/48x48 px.svg') }}">
+  <link href="{{ url_for('static', filename='css/libs/bootstrap.min.css') }}" rel="stylesheet" media="screen">
+  {% block header %}{% endblock %}
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/update_style.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/upload.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/book-carousel.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/loaders.css') }}" rel="stylesheet" media="screen">
+  {% if g.current_theme == 1 %}
+  <link href="{{ url_for('static', filename='css/caliBlur.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/caliBlur_override.css') }}" rel="stylesheet" media="screen">
+  {% endif %}
+  <link href="{{ url_for('static', filename='css/libs/fontawesome-free-6.6.0-web/css/all.min.css') }}" rel="stylesheet"
+    media="screen">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Tamil:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="{{ url_for('static', filename='newStyles/css/flashmessage.css') }}" rel="stylesheet" media="screen">
+  <link href="{{ url_for('static', filename='css/share_modal.css') }}" rel="stylesheet" media="screen">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-89TPPH9Y7D"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-89TPPH9Y7D');
+  </script>
+</head>
+
+<body class="{{ page }} {{ bodyClass }}{% if g.current_theme == 1 %} blur{% endif %}" data-text="{{_('Home')}}"
+  data-textback="{{_('Back')}}">
+  <!-- Static navbar -->
+  <!-- Static navbar -->
+  <!-- Initial Page Loader (First Load Only) -->
+  <div id="site-preloader" class="site-preloader initial-loader">
+    <div class="preloader-content">
+      <div class="loader-branding">
+        <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Logo" class="loader-logo">
+        <h1 class="loader-site-name">
+          <span class="name-part1">GetMy</span><span class="name-part2">Ebook</span>
+        </h1>
+      </div>
+      <div class="spinner-loader"></div>
+      <p class="loading-text">Loading your library...</p>
+    </div>
+  </div>
+
+  <!-- Page Loader (Navigation & AJAX) - Standard Spinner (Lightweight) -->
+  <div id="page-loader" class="page-loader">
+    <div class="spinner-loader"></div>
+  </div>
+  </div>
+  <script>
+    // Immediate loader logic to prevent flash and ensure smooth transition
+    // This runs before the rest of the page renders
+    if (sessionStorage.getItem('hasLoadedOnce_v6')) {
+      var sitePreloader = document.getElementById('site-preloader');
+      var pageLoader = document.getElementById('page-loader');
+
+      if (sitePreloader) sitePreloader.style.display = 'none';
+      if (pageLoader) {
+        pageLoader.classList.add('active');
+        // Force immediate visibility to mask page rendering
+        pageLoader.style.opacity = '1';
+        pageLoader.style.visibility = 'visible';
+      }
+    }
+  </script>
+  <div class="app-container initial-hidden">
+    <!-- New Header Structure -->
+    <div class="new-header-wrapper">
+      <!-- Header 1 -->
+      <div class="header-row-1">
+        <button id="mobile-menu-toggle" class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+          <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="logo-section">
+          <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 50px;">
+          <span class="sitename"><span class="app-name-part1">GetMy</span><span
+              class="app-name-part2">Ebook</span></span>
+        </div>
+
+        <!-- Desktop Search Bar -->
+        <div class="search-container-styled desktop-search-container" id="desktop-search-container">
+          <form class="search-form-styled" role="search" action="{{url_for('search.simple_search')}}" method="GET">
+            <input style="border: none;" class="search-input-styled" type="text" id="query-desktop" name="query"
+              placeholder="{{_('Search Library')}}" value="{{searchterm}}">
+            <button class="search-btn-styled" type="submit"><i class="fas fa-search"></i></button>
+          </form>
+        </div>
+
+        <div class="header-right-actions">
+          <div class="language-section">
+            <div class="toggle_switch custom-lang-toggle">
+              <label class="switch">
+                <input type="checkbox" id="locale" onclick="setLocale()">
+                <span class="slider round"></span>
+              </label>
+            </div>
           </div>
-          {% if g.current_theme == 1 %}
-              <div class="home-btn"><a class="home-btn-tooltip" href="{{url_for("web.index",page=1)}}" data-toggle="tooltip" title="" data-placement="bottom" data-original-title="Home"></a></div>
-              <div class="plexBack"><a href="{{url_for('web.index')}}"></a></div>
-          {% endif %}
-          {% if current_user.is_authenticated or g.allow_anonymous %}
-            <form class="navbar-form navbar-left search-form" role="search" action="{{url_for('search.simple_search')}}" method="GET">
-              <!-- <div class="form-group input-group input-group-sm">
-                <label for="query" class="sr-only">{{_('Search')}}</label>
-                <input type="text" class="form-control" id="query" name="query" placeholder="{{_('Search Library')}}" value="{{searchterm}}">
-                <span class="input-group-btn">
-                  <button type="submit" id="query_submit" class="btn btn-default">{{_('Search')}}</button>
-                </span>
-              </div> -->
-              <div class="search-bar">
-                <input class="search-input" type="text" id="query" name="query" placeholder="{{_('Search Library')}}" value="{{searchterm}}">
-                <span>
-                  <button class="search-icon" type="submit"><i class="fas fa-search"></i></button>
-                </span>
+
+          <div class="user-section">
+            {% if current_user.is_authenticated %}
+            <div class="user-profile" onclick="toggleUserDropdown()">
+              <div class="avatar-circle">
+                {% if current_user.name %}
+                {{current_user.name[0]|upper}}
+                {% else %}
+                <i class="fas fa-user"></i>
+                {% endif %}
               </div>
-            </form>
-          {% endif %}
-          <div class="header-right-content">
-            {% if g.allow_anonymous %}
-              <div class="toggle_switch">
-                <label>English</label>
-                <label class="switch">
-                    <input type="checkbox" id="locale" onclick="setLocale()">
-		    <span class="slider round"></span>
-                </label>
-                <label>தமிழ்</label>
+              <span class="username">{{current_user.name}}</span>
+
+              <div id="user-dropdown" class="user-dropdown-content">
+                {% if current_user.role_upload() and g.allow_upload %}
+                <form id="form-upload" class="form-upload-class" action="{{ url_for('edit-book.upload') }}"
+                  data-title="{{_('Uploading...')}}" data-footer="{{_('Close')}}" data-failed="{{_('Error')}}"
+                  data-message="{{_('Upload done, processing, please wait...')}}" method="post"
+                  enctype="multipart/form-data" style="margin: 0; padding: 0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div style="margin: 0;">
+                    <span class="btn-file"
+                      style="display: block; padding: 12px 16px; color: #333; cursor: pointer; text-decoration: none; width: 100%; text-align: left;">
+                      <i class="fas fa-upload"></i> {{_('Upload')}}
+                      <input id="btn-upload" name="btn-upload" type="file"
+                        accept="{% for format in accept %}.{% if format != ''%}{{format}}{% else %}*{% endif %}{{ ',' if not loop.last }}{% endfor %}"
+                        multiple style="cursor: pointer;">
+                    </span>
+                    <input class="hide" id="btn-upload2" name="btn-upload2" type="file"
+                      accept="{% for format in accept %}.{% if format != ''%}{{format}}{% else %}*{% endif %}{{ ',' if not loop.last }}{% endfor %}">
+                  </div>
+                </form>
+                {% endif %}
+
+                {% if not current_user.is_anonymous and not simple%}
+                <a href="{{url_for('tasks.get_tasks_status')}}">
+                  <i class="fas fa-tasks"></i> {{_('Tasks')}}
+                </a>
+                {% endif %}
+
+                {% if current_user.role_admin() %}
+                <a href="{{url_for('admin.admin')}}">
+                  <i class="fas fa-cog"></i> {{_('Admin')}}
+                </a>
+                {% endif %}
+                {% if current_user.role_admin() %}
+                <a href="{{url_for('main.index')}}">
+                  <i class="fas fa-comment"></i> {{_('forums')}}
+                </a>
+                {% endif %}
+                {% if current_user.role_admin() %}
+                <a href="{{url_for('admin.comments_panel')}}">
+                  <i class="fa-solid fa-comments"></i> {{_('Comments Panel')}}
+                </a>
+                {% endif %}
+                <a href="{{url_for('web.logout') }}">
+                  <i class="fas fa-sign-out-alt"></i> {{_('Logout')}}
+                </a>
               </div>
+            </div>
+            {% else %}
+            <a href="{{url_for('web.login')}}" class="login-btn">{{_('Login')}}</a>
             {% endif %}
-            <div>
-              <!-- {% if current_user.is_authenticated or g.allow_anonymous %}
-              <ul class="nav navbar-nav ">
-                <li><a href="{{url_for('search.advanced_search')}}" id="advanced_search"><span class="glyphicon glyphicon-search"></span><span class="hidden-sm"> {{_('Advanced Search')}}</span></a></li>
-              </ul>
-              {% endif %} -->
-              <ul class="nav navbar-nav navbar-right">
-                {% if current_user.is_authenticated or g.allow_anonymous %}
-                  {% if g.current_theme == 1 %}
-                  <li class="dropdown"><a href="#" class="dropdown-toggle profileDrop" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-user"></span></a>
-                    <ul class="dropdown-menu profileDropli">
-                        <li><a id="top_user" data-text="{{_('Account')}}" href="{{url_for('web.profile')}}" ><span class="glyphicon glyphicon-user"></span> <span class="">{{current_user.name}}</span></a></li>
-                        {% if g.allow_registration and not current_user.is_authenticated %}
-                        <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span> {{_('Login')}}</a></li>
-                        <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span> {{_('Register')}}</a></li>
-                        {% endif %}
-                        {% if not current_user.is_anonymous %}
-                        <li><a id="logout" href="{{url_for('web.logout', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}"><span class="glyphicon glyphicon-log-out"></span> <span class="hidden-sm">{{_('Logout')}}</span></a></li>
-                        {% endif %}
-                    </ul>
-                  </li>
-                  {% endif %}
-                  {% if current_user.role_upload() and g.allow_upload %}
-                      <li>
-                        <form id="form-upload" class="navbar-form" action="{{ url_for('edit-book.upload') }}" data-title="{{_('Uploading...')}}" data-footer="{{_('Close')}}" data-failed="{{_('Error')}}" data-message="{{_('Upload done, processing, please wait...')}}" method="post" enctype="multipart/form-data">
-                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                          <div class="form-group">
-                            <span class="btn btn-default btn-file">{{_('Upload')}}<input id="btn-upload" name="btn-upload"
-                            type="file" accept="{% for format in accept %}.{% if format != ''%}{{format}}{% else %}*{% endif %}{{ ',' if not loop.last }}{% endfor %}" multiple></span>
-                          </div>
-                        </form>
-                      </li>
-                  {% endif %}
-                  {% if not current_user.is_anonymous and not simple%}
-                    <li class="top_tasks"><a id="top_tasks" href="{{url_for('tasks.get_tasks_status')}}"><span class="glyphicon glyphicon-tasks"></span> <span class="hidden-sm">{{_('Tasks')}}</span></a></li>
-                  {% endif %}
-                  {% if current_user.role_admin() %}
-                    <li><a id="top_admin" data-text="{{_('Settings')}}" href="{{url_for('admin.admin')}}"><span class="glyphicon glyphicon-dashboard"></span> <span class="hidden-sm">{{_('Admin')}}</span></a></li>
-                  {% endif %}
-                  {% if g.current_theme == 0 %}
-                  <!-- <li><a id="top_user" data-text="{{_('Account')}}" href="{% if not current_user.is_anonymous %}{{url_for('web.profile')}}{% else %}{{url_for('web.login', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}{% endif %}"><span class="glyphicon glyphicon-user"></span> <span class="hidden-sm">{{current_user.name}}</span></a></li> -->
-                  <!-- <li><a id="top_user" data-text="{{_('Account')}}" href=""><span class="glyphicon glyphicon-user"></span> <span>{{current_user.name}}</span></a></li> -->
-                    {% if not current_user.is_anonymous %}
-                    <li><a id="logout" href="{{url_for('web.logout', next=(request.path + "?" + request.query_string.decode("utf-8")).rstrip("?"))}}"><span class="glyphicon glyphicon-log-out"></span> <span class="hidden-sm">{{_('Logout')}}</span></a></li>
-                    {% endif %}
-                  {% endif %}
-                {% endif %}
-                {% if g.allow_registration and not current_user.is_authenticated and g.current_theme == 0 %}
-                <li><a id="login" href="{{url_for('web.login')}}"><span class="glyphicon glyphicon-log-in"></span> {{_('Login')}}</a></li>
-                <li><a id="register" href="{{url_for('web.register')}}"><span class="glyphicon glyphicon-user"></span> {{_('Register')}}</a></li>
-                {% endif %}
-              </ul>
-            </div><!--/.nav-collapse -->
           </div>
         </div>
       </div>
-      <div class="main-container">
-        {% if current_user.is_authenticated or g.allow_anonymous %}
-        <div class="left-side-container">
-          <nav class="sidebar-navigation">
-            <ul class="list-unstyled" id="scnd-nav" intent in-standard-append="nav.navigation" >
-              <!-- <li class="nav-head hidden-xs">{{_('Browse')}}</li> -->
-              {% for element in sidebar %}
-                {% if current_user.check_visibility(element['visibility']) and element['public'] %}
-                    <li id="nav_{{element['id']}}" {% if page == element['page'] %}class="active"{% endif %}>
-                      <a class="nav-data" href="{{url_for(element['link'], data=element['page'], sort_param='stored')}}"><span class="glyphicon {{element['glyph']}}"></span> <span class="tooltip">{{_(element['text'])}}</span></a>
-                    </li>
-                {% endif %}
-              {% endfor %}
-              <!-- {% if current_user.is_authenticated or g.allow_anonymous %}
-                <li class="nav-head hidden-xs public-shelves">{{_('Shelves')}}</li>
-                {% for shelf in g.shelves_access %}
-                  <li>
-                    <a href="{{url_for('shelf.show_shelf', shelf_id=shelf.id)}}"><span class="glyphicon glyphicon-list shelf"></span> {{shelf.name|shortentitle(40)}}{% if shelf.is_public == 1 %} {{_('(Public)')}}{% endif %}</a>
-                  </li>
-                {% endfor %}
-              {% if not current_user.is_anonymous %}
-                <li id="nav_createshelf" class="create-shelf"><a href="{{url_for('shelf.create_shelf')}}">{{_('Create a Shelf')}}</a></li>
-                <li id="nav_about" {% if page == 'stat' %}class="active"{% endif %}><a href="{{url_for('about.stats')}}"><span class="glyphicon glyphicon-info-sign"></span> {{_('About')}}</a></li>
-              {% endif %}
-              {% endif %} -->
 
-            </ul>
-          </nav>
+      <!-- Header 2 -->
+      <div class="header-row-2">
+        <div class="search-container-styled mobile-search-container" id="mobile-search-container">
+          <form class="search-form-styled" role="search" action="{{url_for('search.simple_search')}}" method="GET">
+            <input style="border: none;" class="search-input-styled" type="text" id="query-mobile" name="query"
+              placeholder="{{_('Search Library')}}" value="{{searchterm}}">
+            <button class="search-btn-styled" type="submit"><i class="fas fa-search"></i></button>
+          </form>
+        </div>
+        <button class="nav-scroll-btn left" id="scrollLeftBtn" onclick="scrollMenu('left')">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="nav-scroll-wrapper" id="navScrollWrapper">
+          <ul class="main-menu" id="mainMenu">
+            {% for element in sidebar %}
+            {% if current_user.check_visibility(element['visibility']) and (element['public'] or not
+            current_user.is_anonymous) %}
+            <li {% if page==element['page'] %}class="active" {% endif %}>
+              <a href="{{url_for(element['link'], data=element['page'], sort_param='stored')}}">
+                {{_(element['text'])}}
+              </a>
+            </li>
+            {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+        <button class="nav-scroll-btn right" id="scrollRightBtn" onclick="scrollMenu('right')">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="main-container">
+      <!-- Flash Messages Container -->
+      <div class="flash-messages-container">
+        {% for message in get_flashed_messages(with_categories=True) %}
+        {% set category = message[0] %}
+        {% set msg_text = message[1] %}
+        {% set icon_class = 'fa-info-circle' %}
+
+        {% if category == 'error' or category == 'danger' %}
+        {% set category = 'error' %}
+        {% set icon_class = 'fa-exclamation-circle' %}
+        {% elif category == 'warning' %}
+        {% set icon_class = 'fa-exclamation-triangle' %}
+        {% elif category == 'success' %}
+        {% set icon_class = 'fa-check-circle' %}
+        {% endif %}
+
+        <div class="flash-message {{ category }}">
+          <i class="fas {{ icon_class }} flash-icon"></i>
+          <div class="flash-content">{{ msg_text }}</div>
+          <button class="flash-close" onclick="this.parentElement.style.display='none'"><i
+              class="fas fa-times"></i></button>
+          <div class="flash-progress"></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="right-side-container">
+        {% block body %}{% endblock %}
+        {% if pagination and (pagination.has_next or pagination.has_prev) %}
+        <div class="pagination-wrapper">
+          <ul class="pagination-list">
+            {% if pagination.has_prev %}
+            <li class="page-item page-previous">
+              <a class="page-link" aria-label="previous page" href="{{ (pagination.page - 1)|url_for_other_page }}">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            </li>
+            {% endif %}
+
+            {% for page in pagination.iter_pages() %}
+            {% if page %}
+            {% if page != pagination.page %}
+            <li class="page-item">
+              <a class="page-link" aria-label="to page {{ page }}" href="{{ (page)|url_for_other_page }}">{{ page }}</a>
+            </li>
+            {% else %}
+            <li class="page-item active">
+              <span class="page-link">{{ page }}</span>
+            </li>
+            {% endif %}
+            {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">...</span>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <li class="page-item page-next">
+              <a class="page-link next" aria-label="next page" href="{{ (pagination.page + 1)|url_for_other_page}}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
         </div>
         {% endif %}
-        <div class="right-side-container">
-          {% block body %}{% endblock %}
-          {% if pagination and (pagination.has_next or pagination.has_prev) %}
-            <div class="pagination">
-              {% if pagination.has_prev %}
-              <li class="page-item page-previous"><a class="page-link" aria-label="next page" href="{{ (pagination.page - 1)|url_for_other_page
-                }}">&laquo; {{_('Previous')}}</a></li>
-              {% endif %}
-            {% for page in pagination.iter_pages() %}
-              {% if page %}
-                {% if page != pagination.page %}
-                  <li class="page-item"><a class="page-link" aria-label="to page {{ page }}" href="{{ (page)|url_for_other_page }}">{{ page }}</a></li>
-                {% else %}
-                  <li class="page-item active"><a class="page-link" aria-label="to page {{ page }}" href="{{ (page)|url_for_other_page }}">{{ page }}</a></li>
-                {% endif %}
-              {% else %}
-                <li class="page-item page-last-separator disabled"><a class="page-link" aria-label="">…</a></li>
-              {% endif %}
-            {% endfor %}
-            {% if pagination.has_next %}
-              <li class="page-item page-next"><a class="page-link next" aria-label="next page" href="{{ (pagination.page + 1)|url_for_other_page
-                }}">{{_('Next')}} &raquo;</a></li>
-            {% endif %}
-            </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Menu Wrapper -->
+  <div class="mobile-menu-wrapper" id="mobileMenuWrapper">
+    <div class="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+    <div class="mobile-menu-area">
+      <div class="mobile-logo-section">
+        <div class="logo-section">
+          <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 40px;">
+          <span class="sitename"><span class="app-name-part1">GetMy</span><span
+              class="app-name-part2">Ebook</span></span>
+        </div>
+        <button class="mobile-menu-close" onclick="toggleMobileMenu()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="mobile-menu-content">
+        <ul class="mobile-menu-list">
+          {% if current_user.is_authenticated %}
+          <li>
+            <a href="{{url_for('web.profile')}}">
+              <i class="fas fa-user" style="margin-right: 10px;"></i> {{current_user.name}}
+            </a>
+          </li>
+          {% if current_user.role_admin() %}
+          <li>
+            <a href="{{url_for('admin.admin')}}">
+              <i class="fas fa-cog" style="margin-right: 10px;"></i> {{_('Admin')}}
+            </a>
+          </li>
           {% endif %}
-        </div>
-      </div>
-      
-      
-    </div>
-    {% for message in get_flashed_messages(with_categories=True) %}
-      {%if message[0] == "error" %}
-      <div class="row-fluid text-center" >
-        <div id="flash_danger" class="alert alert-danger">{{ message[1] }}</div>
-      </div>
-      {%endif%}
-      {%if message[0] == "info" %}
-      <div class="row-fluid text-center">
-        <div id="flash_info" class="alert alert-info">{{ message[1] }}</div>
-      </div>
-      {%endif%}
-      {%if message[0] == "warning" %}
-      <div class="row-fluid text-center">
-        <div id="flash_warning" class="alert alert-warning">{{ message[1] }}</div>
-      </div>
-      {%endif%}
-      {%if message[0] == "success" %}
-      <div class="row-fluid text-center">
-        <div id="flash_success" class="alert alert-success">{{ message[1] }}</div>
-      </div>
-      {%endif%}
-    {% endfor %}
-    {% block flash %}{% endblock %}
-    {% if g.current_theme == 1 %}
-      <div id="loader" hidden="true">
-        <center>
-          <h3>{{_('Uploading...')}}</h3>
-          <span>{{_("Please do not refresh the page")}}</span>.
-        </center>
-      </div>
-    {%endif%}
-    <div class="modal fade" id="bookDetailsModal" tabindex="-1" role="dialog" aria-labelledby="bookDetailsModalLabel">
-      <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title" id="bookDetailsModalLabel">{{_('Book Details')}}</h4>
-          </div>
-          <div class="modal-body">...</div>
-          <div class="modal-footer">
-            <button type="button" id="details_close" class="btn btn-default" data-dismiss="modal">{{_('Close')}}</button>
-          </div>
-        </div>
+          <li>
+            <a href="{{url_for('web.logout')}}">
+              <i class="fas fa-sign-out-alt" style="margin-right: 10px;"></i> {{_('Logout')}}
+            </a>
+          </li>
+          <li style="border-bottom: 1px solid #eee; margin: 5px 0;"></li>
+          {% else %}
+          <li style="padding: 10px 20px; border: none;">
+            <a href="{{url_for('web.login')}}" class="mobile-auth-btn login">
+              <i class="fas fa-sign-in-alt" style="margin-right: 10px;"></i> {{_('Login')}}
+            </a>
+          </li>
+          {% if g.allow_registration %}
+          <li style="padding: 0 20px 10px 20px; border: none;">
+            <a href="{{url_for('web.register')}}" class="mobile-auth-btn register">
+              <i class="fas fa-user-plus" style="margin-right: 10px;"></i> {{_('Register')}}
+            </a>
+          </li>
+          {% endif %}
+          <li style="border-bottom: 1px solid #eee; margin: 5px 0;"></li>
+          {% endif %}
+
+          {% for element in sidebar %}
+          {% if current_user.check_visibility(element['visibility']) and element['public'] %}
+          <li {% if page==element['page'] %}class="active" {% endif %}>
+            <a href="{{url_for(element['link'], data=element['page'], sort_param='stored')}}">{{_(element['text'])}}</a>
+          </li>
+          {% endif %}
+          {% endfor %}
+        </ul>
       </div>
     </div>
-    {% block modal %}{% endblock %}
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="{{ url_for('static', filename='js/libs/jquery.min.js') }}"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="{{ url_for('static', filename='js/libs/bootstrap.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/libs/underscore-umd-min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/libs/intention.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/libs/context.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/libs/plugins.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/libs/jquery.form.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/uploadprogress.js') }}"> </script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    {% if g.current_theme == 1 %}
-      <script src="{{ url_for('static', filename='js/libs/jquery.visible.min.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/libs/compromise.min.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/libs/readmore.min.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/caliBlur.js') }}"></script>
-    {% endif %}
-    <script>
-      function setLocale() {
-        var checkBox = document.getElementById("locale");
-        var text = document.getElementById("text");
-        if (checkBox.checked == true){
-          document.cookie = 'get_my_ebook_locale=ta;path=/';
-          window.location.reload();
-        } else {
-          document.cookie = 'get_my_ebook_locale=en;path=/'
-          window.location.reload();
+  </div>
+
+  {% block flash %}{% endblock %}
+  {% if g.current_theme == 1 %}
+  <div id="loader" hidden="true">
+    <center>
+      <h3>{{_('Uploading...')}}</h3>
+      <span>{{_("Please do not refresh the page")}}</span>.
+    </center>
+  </div>
+  {%endif%}
+  </div>
+  <div class="modal fade" id="bookDetailsModal" tabindex="-1" role="dialog" aria-labelledby="bookDetailsModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content" style="position: relative; padding: 20px; border-radius: 15px; border: none;">
+        <button type="button" class="close-modal-btn" data-dismiss="modal" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="modal-body" style="padding: 0;">...</div>
+      </div>
+    </div>
+  </div>
+  {% block modal %}{% endblock %}
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+  <script src="{{ url_for('static', filename='js/libs/jquery.min.js') }}"></script>
+  <!-- Include all compiled plugins (below), or include individual files as needed -->
+  <script src="{{ url_for('static', filename='js/libs/bootstrap.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/underscore-umd-min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/intention.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/context.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/plugins.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/jquery.form.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/uploadprogress.js') }}"> </script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/book-carousel.js') }}"></script>
+  {% if g.current_theme == 1 %}
+  <script src="{{ url_for('static', filename='js/libs/jquery.visible.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/compromise.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/libs/readmore.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/caliBlur.js') }}"></script>
+  {% endif %}
+  <script>
+    function setLocale() {
+      var checkBox = document.getElementById("locale");
+      var text = document.getElementById("text");
+      if (checkBox.checked == true) {
+        document.cookie = 'get_my_ebook_locale=ta;path=/';
+        window.location.reload();
+      } else {
+        document.cookie = 'get_my_ebook_locale=en;path=/'
+        window.location.reload();
+      }
+    }
+    var checkBox = document.getElementById("locale");
+    if ((document.cookie == '') || (document.cookie == 'get_my_ebook_locale=en')) {
+      checkBox.checked = false
+    } else {
+      checkBox.checked = true
+    }
+    function toggleSearch() {
+      var searchContainer = document.getElementById("search-container");
+      searchContainer.classList.toggle("active");
+      document.body.classList.toggle("search-active"); // Toggle body class for CSS control
+      if (searchContainer.classList.contains("active")) {
+        document.getElementById("query").focus();
+      }
+    }
+
+    function toggleUserDropdown() {
+      document.getElementById("user-dropdown").classList.toggle("show");
+    }
+
+    function toggleMobileMenu() {
+      document.getElementById("mobileMenuWrapper").classList.toggle("active");
+      document.body.classList.toggle("mobile-menu-active");
+    }
+
+    function scrollMenu(direction) {
+      const wrapper = document.getElementById('navScrollWrapper');
+      const scrollAmount = 300;
+      if (direction === 'left') {
+        wrapper.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        wrapper.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+    }
+
+    function checkNavOverflow() {
+      const wrapper = document.getElementById('navScrollWrapper');
+      const menu = document.getElementById('mainMenu');
+      const headerRow = document.querySelector('.header-row-2');
+
+      if (menu.scrollWidth > wrapper.clientWidth) {
+        headerRow.classList.add('has-overflow');
+      } else {
+        headerRow.classList.remove('has-overflow');
+      }
+    }
+
+    // Run on load and resize
+    window.addEventListener('load', checkNavOverflow);
+    window.addEventListener('resize', checkNavOverflow);
+
+    // Close the dropdown if the user clicks outside of it
+    window.onclick = function (event) {
+      try {
+        // Close User Dropdown
+        if (!event.target.closest('.user-profile')) {
+          var dropdowns = document.getElementsByClassName("user-dropdown-content");
+          for (var i = 0; i < dropdowns.length; i++) {
+            var openDropdown = dropdowns[i];
+            if (openDropdown && openDropdown.classList && openDropdown.classList.contains('show')) {
+              openDropdown.classList.remove('show');
+            }
+          }
+        }
+
+        // Close Search Overlay if clicked outside
+        // Note: IDs might be desktop-search-container or mobile-search-container
+        var searchContainer = document.getElementById("search-container");
+        var searchToggle = document.getElementById("mobile-search-toggle");
+
+        if (searchContainer && searchToggle) {
+          if (searchContainer.classList.contains('active') &&
+            !searchContainer.contains(event.target) &&
+            !searchToggle.contains(event.target)) {
+            searchContainer.classList.remove("active");
+          }
+        }
+      } catch (e) {
+        console.error("Error in window.onclick:", e);
+      }
+    }
+
+    // Preloader Logic
+    var hasLoadedOnce = sessionStorage.getItem('hasLoadedOnce_v6');
+
+    function hideInitialLoader() {
+      var preloader = document.getElementById('site-preloader');
+      if (preloader) {
+        preloader.classList.add('fade-out');
+        setTimeout(function () {
+          preloader.style.display = 'none';
+          sessionStorage.setItem('hasLoadedOnce_v6', 'true');
+        }, 500);
+      }
+    }
+
+    function showPageLoader() {
+      var pageLoader = document.getElementById('page-loader');
+      if (pageLoader) {
+        pageLoader.classList.add('active');
+        // Ensure inline styles don't override CSS transitions
+        pageLoader.style.removeProperty('opacity');
+        pageLoader.style.removeProperty('visibility');
+      }
+    }
+
+    function hidePageLoader() {
+      var pageLoader = document.getElementById('page-loader');
+      if (pageLoader) {
+        pageLoader.classList.remove('active');
+        // Clear inline styles set by the inline script
+        setTimeout(function () {
+          pageLoader.style.removeProperty('opacity');
+          pageLoader.style.removeProperty('visibility');
+        }, 300); // Wait for transition
+      }
+    }
+
+    // Initial page load complete
+    window.addEventListener('load', function () {
+      if (!hasLoadedOnce) {
+        hideInitialLoader();
+      } else {
+        // If it was a subsequent load, we showed pageLoader via inline script.
+        // Now hide it with a small delay for smoothness
+        setTimeout(hidePageLoader, 300);
+      }
+
+      var appContainer = document.querySelector('.app-container');
+      if (appContainer) {
+        appContainer.classList.remove('initial-hidden');
+        appContainer.classList.add('animate-up');
+      }
+
+      // Auto-hide flash messages after 20 seconds
+      var flashMessages = document.querySelectorAll('.flash-message');
+      if (flashMessages.length > 0) {
+        setTimeout(function () {
+          flashMessages.forEach(function (msg) {
+            msg.classList.add('flash-hiding');
+            setTimeout(function () {
+              msg.style.display = "none";
+            }, 500); // Wait for animation
+          });
+        }, 10000);
+      }
+    });
+
+    // Show page loader on navigation
+    document.addEventListener('click', function (e) {
+      var link = e.target.closest('a');
+      if (link &&
+        link.href &&
+        !link.getAttribute('data-toggle') &&
+        !link.getAttribute('data-dismiss') &&
+        !link.href.includes('#') &&
+        link.target !== '_blank' &&
+        !link.getAttribute('onclick')) {
+
+        // Check if it's a real navigation link
+        if (link.hostname === window.location.hostname) {
+          showPageLoader();
         }
       }
-      var checkBox = document.getElementById("locale");
-      if ((document.cookie == '') || (document.cookie == 'get_my_ebook_locale=en')) {
-        checkBox.checked = false
+    });
+
+    // Use page loader for all AJAX requests
+    if (typeof $ !== 'undefined') {
+      $(document).ajaxStart(function () {
+        showPageLoader();
+      }).ajaxStop(function () {
+        hidePageLoader();
+      });
+    }
+
+    // Handle browser back/forward buttons
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) {
+        // Page was restored from bfcache
+        hidePageLoader();
+      } else {
+        // Normal load, but ensure loader is hidden if it was stuck
+        hidePageLoader();
       }
-      else {
-        checkBox.checked = true
-      }
-    </script>
-    {% block js %}{% endblock %}
-  </body>
+    });
+  </script>
+  {% block js %}{% endblock %}
+</body>
+
 </html>

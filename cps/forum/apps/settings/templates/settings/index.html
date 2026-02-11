@@ -1,0 +1,58 @@
+{% extends "layouts/app.html" %}
+
+{% block content %}
+<div class="mt-2">
+
+    <div class="d-flex align-items-center my-4">
+        <a href="javascript:history.back()" class="text-dark" style="text-decoration: none; margin-right: 1rem;">
+            <i class="fa-solid fa-arrow-left fa-lg" style="font-size: 1.7rem; margin-top: 15px;"></i>
+        </a>
+        <h2 class="m-0">Account settings</h2>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12 col-lg-3">
+            <!-- {% include "partials/_sidebar.html" %} -->
+        </div>
+        <div class="col-md-12 col-lg-9  bg-white py-4">
+            <div class="row">
+                <div class="col-10 mx-auto ">
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <avatar class="rounded-circle" :size="100"></avatar>
+                        </div>
+
+                        <avatar-uploader></avatar-uploader>
+                    </div>
+
+
+                    <form action="{{ url_for('settings.index')}}" method="POST">
+                        {{ form.csrf_token }}
+                        <div class="form-group">
+                            <label>{{ form.name.label }}</label>
+                            {{ form.name(class="form-control") }}
+                            {% for error in form.name.errors %}
+                            <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="form-group">
+                            <label>{{ form.email.label }}</label>
+                            {{ form.email(class="form-control") }}
+                            {% for error in form.email.errors %}
+                            <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                        <div class="form-group">
+                            {{ form.submit(class="btn btn-primary")}}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}

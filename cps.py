@@ -25,6 +25,7 @@ import sys
 path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, path)
 
+from cps.setup_manager import is_first_run, run_interactive_setup
 from cps.main import main
 
 
@@ -42,9 +43,15 @@ def hide_console_windows():
 
 
 if __name__ == '__main__':
+    # Check if first-run setup is needed
+    if is_first_run():
+        print("\n🚀 First-run setup detected. Starting configuration wizard...\n")
+        if not run_interactive_setup():
+            print("\n❌ Setup cancelled or failed. Exiting.")
+            sys.exit(1)
+    
     if os.name == "nt":
         hide_console_windows()
     main()
-
 
 

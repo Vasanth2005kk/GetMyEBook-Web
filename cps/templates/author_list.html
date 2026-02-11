@@ -1,0 +1,405 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="feature-author space">
+    <div class="container">
+        <div class="title-area2 animation-style1 title-anime">
+            <h1 class="{{page}}">{{_(title)}}</h1>
+        </div>
+        <div class="filterheader" style="text-align: right; margin-bottom: 20px;">
+            <div class="dropdown" style="display: inline-block;">
+                <button class="btn btn-default dropdown-toggle sort-dropdown-btn" type="button" id="sortMenu"
+                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                    <i class="fas fa-sort-amount-down" style="color: #ff7174;"></i> {{_('Sort By')}}
+                    <span class="caret" style="margin-left: 5px;"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right sort-dropdown-menu" aria-labelledby="sortMenu">
+                    <li><a href="#" class="sort-btn" data-order="asc">{{_('Name: A to Z')}}</a></li>
+                    <li><a href="#" class="sort-btn" data-order="desc">{{_('Name: Z to A')}}</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="row" id="author-grid">
+            {% for entry in entries %}
+            <div class="col-lg-2 col-md-3 col-sm-4 col-xs-6 author-item wow animate__fadeInUp" data-wow-delay="0.20s"
+                data-name="{{ entry[0].name }}">
+                <div class="feature-style2">
+                    <span class="feature-img" style="position: relative;">
+                        {% set author_name = entry[0].name %}
+                        {% if entry[0].image %}
+                        <img src="{{ url_for('static', filename='author_images/' ~ entry[0].image) }}"
+                            alt="{{ author_name }}">
+                        {% if current_user.role_admin() %}
+                        <button class="edit-author-image-btn" data-author-id="{{ entry[0].id }}"
+                            data-author-name="{{ author_name }}" title="Edit Author Image">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-author-image-btn" data-author-id="{{ entry[0].id }}"
+                            data-author-name="{{ author_name }}" title="Delete Author Image">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                        {% else %}
+                        {% set first_letter = author_name[0] | upper %}
+                        <div class="author-initial-placeholder">
+                            {{ first_letter }}
+                            {% if current_user.role_admin() %}
+                            <button class="edit-author-image-btn" data-author-id="{{ entry[0].id }}"
+                                data-author-name="{{ author_name }}" data-is-placeholder="true"
+                                title="Add Author Image">
+                                <i class="fas fa-camera-retro"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </span>
+                    <h2 class="feature-title">
+                        <a
+                            href="{{url_for('web.books_list', data='author', sort_param='stored', book_id=entry[0].id )}}">{{
+                            author_name }}</a>
+                    </h2>
+                    <span class="book-count">{{ entry[1] }} {{_('Books')}}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<style>
+    .edit-author-image-btn,
+    .delete-author-image-btn {
+        position: absolute;
+        top: 50%;
+        background: rgba(255, 113, 116, 0.9);
+        border: none;
+        color: white;
+        padding: 12px 14px;
+        border-radius: 50%;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 10;
+        font-size: 16px;
+        transform: translateY(-50%);
+    }
+
+    .edit-author-image-btn {
+        right: calc(50% - 50px);
+    }
+
+    .delete-author-image-btn {
+        background: rgba(220, 53, 69, 0.9);
+        right: calc(50% + 10px);
+    }
+
+    .feature-img:hover .edit-author-image-btn,
+    .feature-img:hover .delete-author-image-btn,
+    .author-initial-placeholder:hover .edit-author-image-btn {
+        opacity: 1;
+    }
+
+    .edit-author-image-btn:hover {
+        background: rgba(255, 113, 116, 1);
+        transform: translateY(-50%) scale(1.15);
+    }
+
+    .delete-author-image-btn:hover {
+        background: rgba(220, 53, 69, 1);
+        transform: translateY(-50%) scale(1.15);
+    }
+
+
+    .image-upload-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-content-custom {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 30px;
+        border: 1px solid #888;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header-custom {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #ff7174;
+    }
+
+    .modal-header-custom h3 {
+        margin: 0;
+        color: #333;
+    }
+
+    .close-modal {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+    .close-modal:hover {
+        color: #ff7174;
+    }
+
+    .image-preview {
+        width: 100%;
+        max-height: 300px;
+        margin: 20px 0;
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        background: #f9f9f9;
+    }
+
+    .image-preview img {
+        max-width: 100%;
+        max-height: 280px;
+        border-radius: 5px;
+    }
+
+    .btn-upload {
+        background: #ff7174;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.3s;
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    .btn-upload:hover {
+        background: #ff5558;
+    }
+
+    .file-input-wrapper {
+        margin: 15px 0;
+    }
+
+    .file-input-wrapper input[type="file"] {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    $(document).ready(function () {
+        $('.sort-btn').click(function (e) {
+            e.preventDefault();
+            var order = $(this).data('order');
+            var $grid = $('#author-grid');
+            var $items = $grid.children('.author-item');
+
+            $items.sort(function (a, b) {
+                var nameA = $(a).data('name').toUpperCase();
+                var nameB = $(b).data('name').toUpperCase();
+                if (order === 'asc') {
+                    return (nameA < nameB) ? -1 : (nameA > nameB) ? 1 : 0;
+                } else {
+                    return (nameA > nameB) ? -1 : (nameA < nameB) ? 1 : 0;
+                }
+            });
+
+            $grid.append($items);
+        });
+
+        $('.filter-btn').click(function () {
+            $('.filter-btn').removeClass('active');
+            $(this).addClass('active');
+
+            var char = $(this).data('char');
+            var $items = $('.author-item');
+
+            if (char === 'all') {
+                $items.show();
+            } else {
+                $items.each(function () {
+                    var name = $(this).data('name').toUpperCase();
+                    if (name.startsWith(char)) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            }
+        });
+
+        $('.edit-author-image-btn').click(function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var authorId = $(this).data('author-id');
+            var authorName = $(this).data('author-name');
+            var isPlaceholder = $(this).data('is-placeholder');
+
+            var modalHtml = `
+                <div class="image-upload-modal" id="imageUploadModal">
+                    <div class="modal-content-custom">
+                        <div class="modal-header-custom">
+                            <h3>${isPlaceholder ? 'Add Author Image' : 'Edit Author Image'}</h3>
+                            <span class="close-modal">&times;</span>
+                        </div>
+                        <div class="modal-body-custom">
+                            <div class="file-input-wrapper">
+                                <label for="imageFileInput">Choose Image:</label>
+                                <input type="file" id="imageFileInput" accept="image/*">
+                            </div>
+                            <div class="image-preview" id="imagePreview">
+                                <span style="color: #999;">No image selected</span>
+                            </div>
+                            <button class="btn-upload" id="uploadBtn">Upload Image</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            $('.image-upload-modal').remove();
+            $('body').append(modalHtml);
+
+            var $modal = $('#imageUploadModal');
+            var $preview = $('#imagePreview');
+            var $fileInput = $('#imageFileInput');
+            var selectedFile = null;
+
+            $modal.fadeIn(300);
+
+            $('.close-modal').click(function () {
+                $modal.fadeOut(300, function () {
+                    $(this).remove();
+                });
+            });
+
+            $modal.click(function (e) {
+                if (e.target === this) {
+                    $modal.fadeOut(300, function () {
+                        $(this).remove();
+                    });
+                }
+            });
+
+            $fileInput.change(function () {
+                var file = this.files[0];
+                if (file) {
+                    selectedFile = file;
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        $preview.html('<img src="' + e.target.result + '">');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            $('#uploadBtn').click(function () {
+                if (!selectedFile) {
+                    alert('Please select an image first');
+                    return;
+                }
+
+                var formData = new FormData();
+                formData.append('image', selectedFile);
+                formData.append('author_id', authorId);
+
+                console.log('Uploading author image:', {
+                    authorId: authorId,
+                    fileName: selectedFile.name,
+                    fileSize: selectedFile.size
+                });
+
+                $.ajax({
+                    url: '/admin/upload_author_image',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        console.log('Upload success:', response);
+                        $modal.fadeOut(300, function () {
+                            $(this).remove();
+                        });
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Upload error:', {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            response: xhr.responseText,
+                            error: error
+                        });
+                        var errorMsg = 'Error uploading image';
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            if (response.error) {
+                                errorMsg = response.error;
+                            }
+                        } catch (e) {
+                            errorMsg = xhr.statusText || error;
+                        }
+                        alert(errorMsg);
+                    }
+                });
+            });
+        });
+
+        $('.delete-author-image-btn').click(function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var authorId = $(this).data('author-id');
+            var authorName = $(this).data('author-name');
+
+            if (confirm('Delete image for "' + authorName + '"?')) {
+                $.ajax({
+                    url: '/admin/delete_author_image',
+                    type: 'POST',
+                    data: JSON.stringify({ author_id: authorId }),
+                    contentType: 'application/json',
+                    success: function (response) {
+                        console.log('Delete success:', response);
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Delete error:', xhr.responseText);
+                        var errorMsg = 'Error deleting image';
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            if (response.error) {
+                                errorMsg = response.error;
+                            }
+                        } catch (e) {
+                            errorMsg = xhr.statusText || error;
+                        }
+                        alert(errorMsg);
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

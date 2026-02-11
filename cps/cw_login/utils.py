@@ -399,10 +399,11 @@ def _get_remote_addr():
 
 
 def _create_identifier():
-    user_agent = request.headers.get("User-Agent")
-    if user_agent is not None:
-        user_agent = user_agent.encode("utf-8")
-    base = f"{_get_remote_addr()}|{user_agent}"
+    # user_agent = request.headers.get("User-Agent")
+    # if user_agent is not None:
+    #     user_agent = user_agent.encode("utf-8")
+    # base = f"{_get_remote_addr()}|{user_agent}"
+    base = f"{_get_remote_addr()}"
     if str is bytes:
         base = str(base, "utf-8", errors="replace")  # pragma: no cover
     h = sha512()

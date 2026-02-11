@@ -376,13 +376,13 @@ def render_prepare_search_form(cc):
         .join(db.books_tags_link)\
         .join(db.Books)\
         .filter(calibre_db.common_filters()) \
-        .group_by(text('books_tags_link.tag'))\
+        .group_by(db.Tags.id)\
         .order_by(db.Tags.name).all()
     series = calibre_db.session.query(db.Series)\
         .join(db.books_series_link)\
         .join(db.Books)\
         .filter(calibre_db.common_filters()) \
-        .group_by(text('books_series_link.series'))\
+        .group_by(db.Series.id)\
         .order_by(db.Series.name)\
         .filter(calibre_db.common_filters()).all()
     shelves = ub.session.query(ub.Shelf)\

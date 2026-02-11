@@ -22,25 +22,30 @@
 
 /******/ // The require scope
 /******/ var __webpack_require__ = {};
-/******/ 
+/******/
 /************************************************************************/
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
 /******/ 	// define getter functions for harmony exports
 /******/ 	__webpack_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 		for (var key in definition) {
+/******/ 			if (__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
 /******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
+        /******/
+      }
+      /******/
+    }
+    /******/
+  };
+  /******/
+})();
+/******/
 /******/ /* webpack/runtime/hasOwnProperty shorthand */
 /******/ (() => {
 /******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
+  /******/
+})();
+/******/
 /************************************************************************/
 var __webpack_exports__ = {};
 
@@ -720,7 +725,7 @@ const defaultOptions = {
     kind: OptionKind.API
   },
   cMapUrl: {
-    value: "../web/cmaps/",
+    value: "../../cmaps/",
     kind: OptionKind.API
   },
   disableAutoFetch: {
@@ -772,7 +777,7 @@ const defaultOptions = {
     kind: OptionKind.API
   },
   standardFontDataUrl: {
-    value: "../web/standard_fonts/",
+    value: "../../standard_fonts/",
     kind: OptionKind.API
   },
   verbosity: {
@@ -784,7 +789,7 @@ const defaultOptions = {
     kind: OptionKind.WORKER
   },
   workerSrc: {
-    value: "../build/pdf.worker.mjs",
+    value: "./pdf.worker.mjs",
     kind: OptionKind.WORKER
   }
 };
@@ -794,7 +799,7 @@ const defaultOptions = {
     kind: OptionKind.VIEWER
   };
   defaultOptions.sandboxBundleSrc = {
-    value: "../build/pdf.sandbox.mjs",
+    value: "./pdf.sandbox.mjs",
     kind: OptionKind.VIEWER
   };
   defaultOptions.viewerCssTheme = {
@@ -1110,7 +1115,7 @@ class PDFLinkService {
       if (!Array.isArray(dest)) {
         dest = dest.toString();
       }
-    } catch {}
+    } catch { }
     if (typeof dest === "string" || PDFLinkService.#isValidExplicitDest(dest)) {
       this.goToDestination(dest);
       return;
@@ -1207,7 +1212,7 @@ class PDFLinkService {
   }
 }
 class SimpleLinkService extends PDFLinkService {
-  setDocument(pdfDocument, baseUrl = null) {}
+  setDocument(pdfDocument, baseUrl = null) { }
 }
 
 ;// CONCATENATED MODULE: ./web/pdfjs.js
@@ -1388,10 +1393,10 @@ class BaseExternalServices {
       throw new Error("Cannot initialize BaseExternalServices.");
     }
   }
-  updateFindControlState(data) {}
-  updateFindMatchesCount(data) {}
-  initPassiveLoading() {}
-  reportTelemetry(data) {}
+  updateFindControlState(data) { }
+  updateFindMatchesCount(data) { }
+  initPassiveLoading() { }
+  reportTelemetry(data) { }
   async createL10n() {
     throw new Error("Not implemented: createL10n");
   }
@@ -1401,11 +1406,11 @@ class BaseExternalServices {
   updateEditorStates(data) {
     throw new Error("Not implemented: updateEditorStates");
   }
-  async getNimbusExperimentData() {}
+  async getNimbusExperimentData() { }
   async getGlobalEventNames() {
     return null;
   }
-  dispatchGlobalEvent(_event) {}
+  dispatchGlobalEvent(_event) { }
 }
 
 ;// CONCATENATED MODULE: ./web/preferences.js
@@ -2908,7 +2913,7 @@ class L10n {
     try {
       this.#l10n.connectRoot(element);
       await this.#l10n.translateRoots();
-    } catch {}
+    } catch { }
   }
   async destroy() {
     for (const element of this.#elements) {
@@ -3013,7 +3018,7 @@ class genericl10n_GenericL10n extends L10n {
         baseURL: href.replace(/[^/]*$/, "") || "./",
         paths
       };
-    } catch {}
+    } catch { }
     return {
       baseURL: "./",
       paths: Object.create(null)
@@ -3085,7 +3090,7 @@ class GenericScripting {
 
 
 
-function initCom(app) {}
+function initCom(app) { }
 class Preferences extends BasePreferences {
   async _writeToStorage(prefObj) {
     localStorage.setItem("pdfjs.preferences", JSON.stringify(prefObj));
@@ -6846,7 +6851,7 @@ window.print = function () {
     const activeServiceOnEntry = activeService;
     activeService.renderPages().then(function () {
       return activeServiceOnEntry.performPrint();
-    }).catch(function () {}).then(function () {
+    }).catch(function () { }).then(function () {
       if (activeServiceOnEntry.active) {
         abort();
       }
@@ -7383,13 +7388,13 @@ class PDFScriptingManager {
     if (this.#closeCapability) {
       await Promise.race([this.#closeCapability.promise, new Promise(resolve => {
         setTimeout(resolve, 1000);
-      })]).catch(() => {});
+      })]).catch(() => { });
       this.#closeCapability = null;
     }
     this.#pdfDocument = null;
     try {
       await this.#scripting.destroySandbox();
-    } catch {}
+    } catch { }
     this.#willPrintCapability?.reject(new Error("Scripting destroyed."));
     this.#willPrintCapability = null;
     this.#eventAbortController?.abort();
@@ -10381,7 +10386,7 @@ class PDFViewer {
         source: this,
         pagesCount
       });
-    }, () => {});
+    }, () => { });
     const onBeforeDraw = evt => {
       const pageView = this._pages[evt.pageNumber - 1];
       if (!pageView) {
@@ -11212,8 +11217,8 @@ class PDFViewer {
       case ScrollMode.WRAPPED:
         {
           const {
-              views
-            } = this._getVisiblePages(),
+            views
+          } = this._getVisiblePages(),
             pageLayout = new Map();
           for (const {
             id,
@@ -11288,8 +11293,8 @@ class PDFViewer {
             break;
           }
           const {
-              views
-            } = this._getVisiblePages(),
+            views
+          } = this._getVisiblePages(),
             expectedId = previous ? currentPageNumber - 1 : currentPageNumber + 1;
           for (const {
             id,
@@ -11610,28 +11615,28 @@ class SecondaryToolbar {
       close,
       eventDetails
     } of buttons) {
-        if ( element !== null ) {
-          element.addEventListener("click", evt => {
-            if (eventName !== null) {
-              eventBus.dispatch(eventName, {
-                source: this,
-                ...eventDetails
-              });
-            }
-            if (close) {
-              this.close();
-            }
-            eventBus.dispatch("reporttelemetry", {
+      if (element !== null) {
+        element.addEventListener("click", evt => {
+          if (eventName !== null) {
+            eventBus.dispatch(eventName, {
               source: this,
-              details: {
-                type: "buttons",
-                data: {
-                  id: element.id
-                }
-              }
+              ...eventDetails
             });
+          }
+          if (close) {
+            this.close();
+          }
+          eventBus.dispatch("reporttelemetry", {
+            source: this,
+            details: {
+              type: "buttons",
+              data: {
+                id: element.id
+              }
+            }
           });
-        }
+        });
+      }
     }
     eventBus._on("cursortoolchanged", this.#cursorToolChanged.bind(this));
     eventBus._on("scrollmodechanged", this.#scrollModeChanged.bind(this));
@@ -11857,17 +11862,17 @@ class Toolbar {
       eventName,
       eventDetails
     } of buttons) {
-        if ( element !== null ) {
-            element.addEventListener("click", evt => {
-                if (eventName !== null) {
-                    eventBus.dispatch(eventName, {
-                        source: this,
-                        ...eventDetails,
-                        isFromKeyboard: evt.detail === 0
-                    });
-                }
+      if (element !== null) {
+        element.addEventListener("click", evt => {
+          if (eventName !== null) {
+            eventBus.dispatch(eventName, {
+              source: this,
+              ...eventDetails,
+              isFromKeyboard: evt.detail === 0
             });
-        }
+          }
+        });
+      }
     }
     pageNumber.addEventListener("click", function () {
       this.select();
@@ -12186,9 +12191,9 @@ const PDFViewerApplication = {
       return;
     }
     const {
-        mainContainer,
-        viewerContainer
-      } = this.appConfig,
+      mainContainer,
+      viewerContainer
+    } = this.appConfig,
       params = parseQueryString(hash);
     const loadPDFBug = async () => {
       if (this._PDFBug) {
@@ -12448,45 +12453,45 @@ const PDFViewerApplication = {
     const params = parseQueryString(queryString);
     file = params.get("file") ?? AppOptions.get("defaultUrl");
     validateFileURL(file);
-      /*const fileInput = this._openFileInput = document.createElement("input");
-    fileInput.id = "fileInput";
-    fileInput.hidden = true;
-    fileInput.type = "file";
-    fileInput.value = null;
-    document.body.append(fileInput);
-    fileInput.addEventListener("change", function (evt) {
-      const {
-        files
-      } = evt.target;
-      if (!files || files.length === 0) {
+    /*const fileInput = this._openFileInput = document.createElement("input");
+  fileInput.id = "fileInput";
+  fileInput.hidden = true;
+  fileInput.type = "file";
+  fileInput.value = null;
+  document.body.append(fileInput);
+  fileInput.addEventListener("change", function (evt) {
+    const {
+      files
+    } = evt.target;
+    if (!files || files.length === 0) {
+      return;
+    }
+    eventBus.dispatch("fileinputchange", {
+      source: this,
+      fileInput: evt.target
+    });
+  });
+  appConfig.mainContainer.addEventListener("dragover", function (evt) {
+    for (const item of evt.dataTransfer.items) {
+      if (item.type === "application/pdf") {
+        evt.dataTransfer.dropEffect = evt.dataTransfer.effectAllowed === "copy" ? "copy" : "move";
+        evt.preventDefault();
+        evt.stopPropagation();
         return;
       }
-      eventBus.dispatch("fileinputchange", {
-        source: this,
-        fileInput: evt.target
-      });
+    }
+  });
+  appConfig.mainContainer.addEventListener("drop", function (evt) {
+    if (evt.dataTransfer.files?.[0].type !== "application/pdf") {
+      return;
+    }
+    evt.preventDefault();
+    evt.stopPropagation();
+    eventBus.dispatch("fileinputchange", {
+      source: this,
+      fileInput: evt.dataTransfer
     });
-    appConfig.mainContainer.addEventListener("dragover", function (evt) {
-      for (const item of evt.dataTransfer.items) {
-        if (item.type === "application/pdf") {
-          evt.dataTransfer.dropEffect = evt.dataTransfer.effectAllowed === "copy" ? "copy" : "move";
-          evt.preventDefault();
-          evt.stopPropagation();
-          return;
-        }
-      }
-    });
-    appConfig.mainContainer.addEventListener("drop", function (evt) {
-      if (evt.dataTransfer.files?.[0].type !== "application/pdf") {
-        return;
-      }
-      evt.preventDefault();
-      evt.stopPropagation();
-      eventBus.dispatch("fileinputchange", {
-        source: this,
-        fileInput: evt.dataTransfer
-      });
-    });*/
+  });*/
     if (!AppOptions.get("supportsDocumentFonts")) {
       AppOptions.set("disableFontFace", true);
       this.l10n.get("pdfjs-web-fonts-disabled").then(msg => {
@@ -12633,7 +12638,7 @@ const PDFViewerApplication = {
     if (this.pdfDocument?.annotationStorage.size > 0 && this._annotationStorageModified) {
       try {
         await this.save();
-      } catch {}
+      } catch { }
     }
     const promises = [];
     promises.push(this.pdfLoadingTask.destroy());
@@ -12727,7 +12732,7 @@ const PDFViewerApplication = {
       if (this.downloadComplete) {
         data = await this.pdfDocument.getData();
       }
-    } catch {}
+    } catch { }
     this.downloadManager.download(data, this._downloadUrl, this._docFilename, options);
   },
   async save(options = {}) {
@@ -12819,9 +12824,9 @@ const PDFViewerApplication = {
         });
       });
     });
-    const pageLayoutPromise = pdfDocument.getPageLayout().catch(() => {});
-    const pageModePromise = pdfDocument.getPageMode().catch(() => {});
-    const openActionPromise = pdfDocument.getOpenAction().catch(() => {});
+    const pageLayoutPromise = pdfDocument.getPageLayout().catch(() => { });
+    const pageModePromise = pdfDocument.getPageMode().catch(() => { });
+    const openActionPromise = pdfDocument.getOpenAction().catch(() => { });
     this.toolbar?.setPagesCount(pdfDocument.numPages, false);
     this.secondaryToolbar?.setPagesCount(pdfDocument.numPages);
     this.pdfLinkService.setDocument(pdfDocument);
@@ -12843,7 +12848,7 @@ const PDFViewerApplication = {
       sidebarView: SidebarView.UNKNOWN,
       scrollMode: ScrollMode.UNKNOWN,
       spreadMode: SpreadMode.UNKNOWN
-    }).catch(() => {});
+    }).catch(() => { });
     firstPagePromise.then(pdfPage => {
       this.loadingBar?.setWidth(this.appConfig.viewerContainer);
       this._initializeAnnotationStorageCallbacks(pdfDocument);
@@ -13192,7 +13197,7 @@ const PDFViewerApplication = {
     this.pdfRenderingQueue.renderHighestPriority();
   },
   beforePrint() {
-    this._printAnnotationStoragePromise = this.pdfScriptingManager.dispatchWillPrint().catch(() => {}).then(() => this.pdfDocument?.annotationStorage.print);
+    this._printAnnotationStoragePromise = this.pdfScriptingManager.dispatchWillPrint().catch(() => { }).then(() => this.pdfDocument?.annotationStorage.print);
     if (this.printService) {
       return;
     }
@@ -13559,7 +13564,7 @@ const PDFViewerApplication = {
   },
   _unblockDocumentLoadEvent() {
     document.blockUnblockOnload?.(false);
-    this._unblockDocumentLoadEvent = () => {};
+    this._unblockDocumentLoadEvent = () => { };
   },
   get scriptingReady() {
     return this.pdfScriptingManager.ready;
@@ -13670,7 +13675,7 @@ function webViewerSidebarViewChanged({
 }) {
   PDFViewerApplication.pdfRenderingQueue.isThumbnailViewEnabled = view === SidebarView.THUMBS;
   if (PDFViewerApplication.isInitialViewSet) {
-    PDFViewerApplication.store?.set("sidebarView", view).catch(() => {});
+    PDFViewerApplication.store?.set("sidebarView", view).catch(() => { });
   }
 }
 function webViewerUpdateViewarea({
@@ -13683,7 +13688,7 @@ function webViewerUpdateViewarea({
       scrollLeft: location.left,
       scrollTop: location.top,
       rotation: location.rotation
-    }).catch(() => {});
+    }).catch(() => { });
   }
   if (PDFViewerApplication.appConfig.secondaryToolbar) {
     const href = PDFViewerApplication.pdfLinkService.getAnchorUrl(location.pdfOpenParams);
@@ -13692,12 +13697,12 @@ function webViewerUpdateViewarea({
 }
 function webViewerScrollModeChanged(evt) {
   if (PDFViewerApplication.isInitialViewSet && !PDFViewerApplication.pdfViewer.isInPresentationMode) {
-    PDFViewerApplication.store?.set("scrollMode", evt.mode).catch(() => {});
+    PDFViewerApplication.store?.set("scrollMode", evt.mode).catch(() => { });
   }
 }
 function webViewerSpreadModeChanged(evt) {
   if (PDFViewerApplication.isInitialViewSet && !PDFViewerApplication.pdfViewer.isInPresentationMode) {
-    PDFViewerApplication.store?.set("spreadMode", evt.mode).catch(() => {});
+    PDFViewerApplication.store?.set("spreadMode", evt.mode).catch(() => { });
   }
 }
 function webViewerResize() {

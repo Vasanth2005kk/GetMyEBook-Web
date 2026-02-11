@@ -1,349 +1,732 @@
 {% extends is_xhr|yesno("fragment.html", "layout.html") %}
+{% block header %}
+<meta property="og:title" content="{{ entry.title }}" />
+<meta property="og:image"
+    content="{{ url_for('web.get_cover', book_id=entry.id, resolution='og', c=entry|last_modified, _external=True) }}" />
+<meta property="og:site_name" content="GetMyEBook" />
+<meta property="og:url" content="{{ request.url }}" />
+<meta property="og:type" content="book" />
+
+{% endblock %}
 {% block body %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-sm-3 col-lg-3 col-xs-5">
-            <div class="cover">
-                <!-- Always use full-sized image for the detail page -->
+<div class="container-fluid detail-page-container">
+    <style>
+        /* Share Modal Styles */
+        .share-trigger-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #d46b5e;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .share-trigger-btn:hover {
+            background: #e4e6eb;
+            transform: translateY(-1px);
+        }
+
+        .share-trigger-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* Modal Overlay */
+        .share-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .share-modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Modal Content */
+        .share-modal {
+            position: fixed;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            z-index: 10001;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 769px) {
+            .share-modal {
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0.9);
+                width: 400px;
+                border-radius: 24px;
+                padding: 24px;
+                opacity: 0;
+                visibility: hidden;
+            }
+
+            .share-modal-overlay.active+.share-modal {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .share-modal {
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                border-radius: 24px 24px 0 0;
+                padding: 24px 24px 40px 24px;
+                transform: translateY(100%);
+                opacity: 0;
+                visibility: hidden;
+            }
+
+            .share-modal-overlay.active+.share-modal {
+                transform: translateY(0);
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+
+        /* Modal Header */
+        .share-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .share-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .share-close {
+            background: #f0f2f5;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #65676b;
+            transition: background 0.2s;
+        }
+
+        .share-close:hover {
+            background: #e4e6eb;
+        }
+
+        /* Share Grid */
+        .share-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .share-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #65676b;
+            font-size: 12px;
+            font-weight: 500;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .share-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+
+        .share-item:hover .share-icon-wrapper {
+            transform: scale(1.1);
+        }
+
+        .share-icon-wrapper svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        /* Brand Colors */
+        .whatsapp-bg {
+            background: #25D366;
+        }
+
+        .facebook-bg {
+            background: #1877F2;
+        }
+
+        .twitter-bg {
+            background: #000000;
+        }
+
+        .linkedin-bg {
+            background: #0A66C2;
+        }
+
+        .instagram-bg {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+
+        .instagram-bg {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+
+        /* Copy Link Section */
+        .copy-link-container {
+            background: #f0f2f5;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .link-icon {
+            color: #65676b;
+            display: flex;
+            align-items: center;
+        }
+
+        .link-text {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 13px;
+            color: #65676b;
+        }
+
+        .copy-btn {
+            background: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a1a;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: transform 0.1s;
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Toast */
+        .share-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(33, 37, 41, 0.95);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10005;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .share-toast.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+    <div class="row display-flex">
+        <!-- Left Column: Image -->
+        <div class="col-md-6 col-sm-12">
+            <div class="product-img-box">
                 <img id="detailcover" title="{{ entry.title }}"
-                     src="{{ url_for('web.get_cover', book_id=entry.id, resolution='og', c=entry|last_modified) }}"/>
+                    src="{{ url_for('web.get_cover', book_id=entry.id, resolution='og', c=entry|last_modified) }}"
+                    alt="Product Image">
             </div>
         </div>
-        <div class="col-sm-9 col-lg-9 book-meta">
-            <div class="btn-toolbar" role="toolbar">
-                <div class="btn-group" role="group" aria-label="Download, send to eReader, reading">
-                    {% if current_user.role_download() %}
-                        {% if entry.data|length %}
-                            <div class="btn-group" role="group">
-                                {% if entry.data|length < 2 %}
-                                    <button id="Download" type="button" class="btn btn-primary">
-                                        {{ _('Download') }} :
-                                    </button>
-                                    {% for format in entry.data %}
-                                        <a href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower) }}"
-                                           id="btnGroupDrop1{{ format.format|lower }}" class="btn btn-primary"
-                                           role="button">
-                                            <span class="glyphicon glyphicon-download"></span>{{ format.format }}
-                                            ({{ format.uncompressed_size|filesizeformat }})
-                                        </a>
-                                    {% endfor %}
-                                {% else %}
-                                    <button id="btnGroupDrop1" type="button" class="btn btn-primary dropdown-toggle"
-                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        <span class="glyphicon glyphicon-download"></span> {{ _('Download') }}
-                                        <span class="caret"></span>
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="btnGroupDrop1">
-                                        {% for format in entry.data %}
-                                            <li>
-                                                <a href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower) }}">{{ format.format }}
-                                                    ({{ format.uncompressed_size|filesizeformat }})</a></li>
-                                        {% endfor %}
-                                    </ul>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                        {% if current_user.kindle_mail and entry.email_share_list %}
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            {% if entry.email_share_list.__len__() == 1 %}
-                                <div class="btn-group" role="group">
-                                    <button id="sendbtn" class="btn btn-primary sendbtn-form" data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=entry.email_share_list[0]['format'], convert=entry.email_share_list[0]['convert'])}}">
-                                        <span class="glyphicon glyphicon-send"></span> {{entry.email_share_list[0]['text']}}
-                                    </button>
-                                </div>
-                            {% else %}
-                                <div class="btn-group" role="group">
-                                    <button id="sendbtn2" type="button" class="btn btn-primary dropdown-toggle"
-                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                        <span class="glyphicon glyphicon-send"></span>{{ _('Send to eReader') }}
-                                        <span class="caret"></span>
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="send-to-ereader">
-                                        {% for format in entry.email_share_list %}
-                                            <li>
-                                                <a class="sendbtn-form" data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=format['format'], convert=format['convert'])}}">{{ format['text'] }}</a>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% endif %}
-                        {% endif %}
-                    {% endif %}
-                    {% if entry.reader_list and current_user.role_viewer() %}
-                        <div class="btn-group" role="group">
-                            {% if entry.reader_list|length > 1 %}
-                                <button id="read-in-browser" type="button" class="btn btn-primary dropdown-toggle"
-                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <span class="glyphicon glyphicon-book"></span> {{ _('Read in Browser') }}
-                                    <span class="caret"></span>
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="read-in-browser">
-                                    {% for format in entry.reader_list %}
-                                        <li><a target="_blank"
-                                               href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <a target="_blank"
-                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.reader_list[0]) }}"
-                                   id="readbtn" class="btn btn-primary" role="button"><span
-                                        class="glyphicon glyphicon-book"></span> {{ _('Read in Browser') }}
-                                    - {{ entry.reader_list[0] }}</a>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-                    {% if entry.audio_entries|length > 0 and current_user.role_viewer() %}
-                        <div class="btn-group" role="group">
-                            {% if entry.audio_entries|length > 1 %}
-                                <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    <span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }}
-                                    <span class="caret"></span>
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
-                                    {% for format in entry.reader_list %}
-                                        <li><a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
 
-                                    {% for format in entry.data %}
-                                        {% if format.format|lower in entry.audio_entries %}
-                                            <li><a target="_blank"
-                                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{ format.format|lower }}</a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }} - {{ entry.audio_entries[0] }}</a>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            <h2 id="title">{{ entry.title }}</h2>
-            <p class="author">
-                {% for author in entry.ordered_authors %}
-                    <a href="{{ url_for('web.books_list',  data='author', sort_param='stored', book_id=author.id ) }}">{{ author.name.replace('|',',') }}</a>
-                    {% if not loop.last %}
-                        &amp;
-                    {% endif %}
-                {% endfor %}
-            </p>
-            {% if entry.ratings.__len__() > 0 %}
-                <div class="rating">
-                    <p>
-                        {% for number in range((entry.ratings[0].rating/2)|int(2)) %}
-                            <span class="glyphicon glyphicon-star good"></span>
-                            {% if loop.last and loop.index < 5 %}
-                                {% for numer in range(5 - loop.index) %}
-                                    <span class="glyphicon glyphicon-star-empty"></span>
-                                {% endfor %}
-                            {% endif %}
+        <!-- Right Column: Details -->
+        <div class="col-md-6 col-sm-12">
+            <div class="product-details-box">
+
+                <div class="product-rating-review">
+                    {% if entry.ratings.__len__() > 0 %}
+                    <div class="rating">
+                        {% set rating_val = (entry.ratings[0].rating / 2) | int %}
+                        {% for i in range(rating_val) %}
+                        <span class="glyphicon glyphicon-star good"></span>
                         {% endfor %}
-                    </p>
-                </div>
-            {% endif %}
-            {% if entry.series|length > 0 %}
-                <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index | formatfloat(2), range=(url_for('web.books_list', data='series', sort_param='stored', book_id=entry.series[0].id)|escapedlink(entry.series[0].name))|safe) }}</p>
-
-            {% endif %}
-
-            {% if entry.languages|length > 0 %}
-                <div class="languages">
-                    <p>
-                        <span class="label label-default">{{_('Language')}}: {% for language in entry.languages %}{{language.language_name}}{% if not loop.last %}, {% endif %}{% endfor %}</span>
-                    </p>
-                </div>
-            {% endif %}
-
-            {% if entry.identifiers|length > 0 %}
-                <div class="identifiers">
-                    <p>
-                        <span class="glyphicon glyphicon-link"></span>
-                        {% for identifier in entry.identifiers %}
-                            <a href="{{ identifier|escape }}" target="_blank" class="btn btn-xs btn-success"
-                               role="button">{{ identifier.format_type() }}</a>
+                        {% for i in range(5 - rating_val) %}
+                        <span class="glyphicon glyphicon-star-empty"></span>
                         {% endfor %}
-                    </p>
+                    </div>
+                    {% endif %}
                 </div>
-            {% endif %}
 
-            {% if entry.tags|length > 0 %}
-
-                <div class="tags">
-                    <p>
-                        <span class="glyphicon glyphicon-tags"></span>
-
-                        {% for tag in entry.tags %}
-                            <a href="{{ url_for('web.books_list', data='category', sort_param='stored', book_id=tag.id) }}"
-                               class="btn btn-xs btn-info" role="button">{{ tag.name }}</a>
-                        {% endfor %}
-                    </p>
-
-                </div>
-            {% endif %}
-
-            {% if entry.publishers|length > 0 %}
-                <div class="publishers">
-                    <p>
-				      <span>{{ _('Publisher') }}:
-				          <a href="{{ url_for('web.books_list', data='publisher', sort_param='stored', book_id=entry.publishers[0].id ) }}">{{ entry.publishers[0].name }}</a>
-				      </span>
-                    </p>
-                </div>
-            {% endif %}
-
-            {% if (entry.pubdate|string)[:10] != '0101-01-01' %}
-                <div class="publishing-date">
-                    <p>{{ _('Published') }}: {{ entry.pubdate|formatdate }} </p>
-                </div>
-            {% endif %}
-            {% if cc|length > 0 %}
-
-
-                {% for c in cc %}
-                    {% if entry['custom_column_' ~ c.id]|length > 0 %}
-                        <div class="real_custom_columns">
-                            {{ c.name }}:
-                            {% for column in entry['custom_column_' ~ c.id] %}
-                                {% if c.datatype == 'rating' %}
-                                    {{ (column.value / 2)|formatfloat }}
-                                {% else %}
-                                    {% if c.datatype == 'bool' %}
-                                        {% if column.value == true %}
-                                            <span class="glyphicon glyphicon-ok"></span>
-                                        {% else %}
-                                            <span class="glyphicon glyphicon-remove"></span>
-                                        {% endif %}
-                                    {% else %}
-                                        {% if c.datatype == 'float' %}
-                                            {{ column.value|formatfloat(2) }}
-                                        {% elif c.datatype == 'datetime' %}
-                                            {{ column.value|formatdate }}
-                                        {% elif c.datatype == 'comments' %}
-                                            {{ column.value|safe }}
-                                        {% elif c.datatype == 'series' %}
-                                            {{ '%s [%s]' % (column.value, column.extra|formatfloat(2)) }}
-                                        {% elif c.datatype == 'text' %}
-                                            {{ column.value.strip() }}{% if not loop.last %}, {% endif %}
-                                        {% else %}
-                                            {{ column.value }}
-                                        {% endif %}
-                                    {% endif %}
-                                {% endif %}
+                <!-- Title -->
+                <div class="product-title-container">
+                    <h2 class="product-title">{{ entry.title }}</h2>
+                    <!-- Share Button -->
+                    <button class="share-trigger-btn" onclick="openShareModal()">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+                        </svg>
+                        Share
+                    </button>
+                    <!-- Shelf Button (Adapted from Reference Logic) -->
+                    {% if current_user.is_authenticated %}
+                    <div class="btn-group wishlist-btn-group">
+                        {% if current_user.shelf.all() or g.shelves_access %}
+                        <button type="button" class="icon-btn style-brown dropdown-toggle" data-toggle="dropdown"
+                            title="{{ _('Add to shelf') }}">
+                            <i class="far fa-heart"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-right">
+                            {% for shelf in g.shelves_access %}
+                            {% if not shelf.id in books_shelfs and ( not shelf.is_public or
+                            current_user.role_edit_shelfs() ) %}
+                            <li>
+                                <a href="#"
+                                    data-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                                    data-shelf-action="add">
+                                    {{ shelf.name }}{% if shelf.is_public == 1 %} {{ _('(Public)') }}{% endif %}
+                                </a>
+                            </li>
+                            {% endif %}
                             {% endfor %}
-
-                        </div>
+                        </ul>
+                        {% endif %}
+                    </div>
                     {% endif %}
-                {% endfor %}
-            {% endif %}
-            {% if not current_user.is_anonymous %}
+                </div>
 
-                <div class="custom_columns">
-                    <p>
-                    <form id="have_read_form" action="{{ url_for('web.toggle_read', book_id=entry.id) }}"
-                          method="POST">
+                <!-- Author -->
+                <div class="product-author-section">
+                    <span class="author-label">By:</span>
+                    {% for author in entry.ordered_authors %}
+                    <a href="{{ url_for('web.books_list',  data='author', sort_param='stored', book_id=author.id ) }}"
+                        class="author-link">{{ author.name.replace('|',',') }}</a>
+                    {% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Description -->
+                <div class="product-description">
+                    {% if entry.comments|length > 0 and entry.comments[0].text|length > 0 %}
+                    {{ entry.comments[0].text|safe }}
+                    {% else %}
+                    <p>No description available.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Actions (Download, Send, Read, Listen) -->
+                <div class="product-actions">
+                    <!-- Download -->
+                    {% if current_user.role_download() and entry.data|length %}
+                    {% if entry.data|length < 2 %} {% for format in entry.data %} <a
+                        href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower|replace('kepub', 'kepub.epub')) }}"
+                        class="vs-btn style-brown">
+                        {{ _('Download') }} {{ format.format }}
+                        </a>
+                        {% endfor %}
+                        {% else %}
+                        <div class="btn-group">
+                            <button type="button" class="vs-btn style-brown dropdown-toggle" data-toggle="dropdown">
+                                {{ _('Download') }} <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for format in entry.data %}
+                                <li><a
+                                        href="{{ url_for('web.download_link', book_id=entry.id, book_format=format.format|lower, anyname=entry.id|string+'.'+format.format|lower|replace('kepub', 'kepub.epub')) }}">{{
+                                        format.format }} ({{ format.uncompressed_size|filesizeformat }})</a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Send to eReader -->
+                        {% if current_user.kindle_mail and entry.email_share_list %}
+                        {% if entry.email_share_list.__len__() == 1 %}
+                        <button class="vs-btn style-brown sendbtn-form"
+                            data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=entry.email_share_list[0]['format'], convert=entry.email_share_list[0]['convert'])}}">
+                            <span class="glyphicon glyphicon-send"></span> {{entry.email_share_list[0]['text']}}
+                        </button>
+                        {% else %}
+                        <div class="btn-group">
+                            <button type="button" class="vs-btn style-brown dropdown-toggle" data-toggle="dropdown">
+                                <span class="glyphicon glyphicon-send"></span> {{ _('Send to eReader') }} <span
+                                    class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for format in entry.email_share_list %}
+                                <li><a class="sendbtn-form"
+                                        data-href="{{url_for('web.send_to_ereader', book_id=entry.id, book_format=format['format'], convert=format['convert'])}}">{{
+                                        format['text'] }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Read in Browser -->
+                        {% if entry.reader_list and current_user.role_viewer() %}
+                        {% if entry.reader_list|length > 1 %}
+                        <div class="btn-group">
+                            <button type="button" class="vs-btn style-brown dropdown-toggle" data-toggle="dropdown">
+                                {{ _('Read') }} <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for format in entry.reader_list %}
+                                <li><a target="_blank"
+                                        href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{
+                                        format }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% else %}
+                        <a href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.reader_list[0]) }}"
+                            target="_blank" class="vs-btn style-brown">{{ _('Read') }}</a>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Listen in Browser -->
+                        {% if entry.audio_entries|length > 0 and current_user.role_viewer() %}
+                        {% if entry.audio_entries|length > 1 %}
+                        <div class="btn-group">
+                            <button type="button" class="vs-btn style-brown dropdown-toggle" data-toggle="dropdown">
+                                {{ _('Listen') }} <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for format in entry.reader_list %}
+                                <li><a target="_blank"
+                                        href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{
+                                        format }}</a></li>
+                                {% endfor %}
+                                {% for format in entry.data %}
+                                {% if format.format|lower in entry.audio_entries %}
+                                <li><a target="_blank"
+                                        href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{
+                                        format.format|lower }}</a></li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% else %}
+                        <a target="_blank"
+                            href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}"
+                            class="vs-btn style-brown">{{ _('Listen') }}</a>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Discussion -->
+                        {% if current_user.is_authenticated %}
+                        <div class="discussion-btn-container">
+                            <a href="{{ url_for('threads.book_thread', book_id=entry.id) }}"
+                                class="discussion-btn-popup" role="button">
+                                <i class="fas fa-comments"></i> {{ _('Discussion') }}
+                            </a>
+                        </div>
+                        {% endif %}
+                </div>
+
+                <!-- Meta Info -->
+                <div class="product-meta-info">
+                    <h4 class="meta-title">Information:</h4>
+
+                    <!-- Series -->
+                    {% if entry.series|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">Series:</span>
+                        <span class="meta-value">{{ _("Book %(index)s of %(range)s", index=entry.series_index |
+                            formatfloat(2), range=(url_for('web.books_list', data='series', sort_param='stored',
+                            book_id=entry.series[0].id)|escapedlink(entry.series[0].name))|safe) }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Tags -->
+                    {% if entry.tags|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">Tags:</span>
+                        <span class="meta-value">
+                            {% for tag in entry.tags %}
+                            <a href="{{ url_for('web.books_list', data='category', sort_param='stored', book_id=tag.id) }}"
+                                class="tag-link">{{ tag.name }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Language -->
+                    {% if entry.languages|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">Language:</span>
+                        <span class="meta-value">{% for language in entry.languages %}{{language.language_name}}{% if
+                            not loop.last %}, {% endif %}{% endfor %}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Publisher -->
+                    {% if entry.publishers|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">Publisher:</span>
+                        <span class="meta-value"><a
+                                href="{{ url_for('web.books_list', data='publisher', sort_param='stored', book_id=entry.publishers[0].id ) }}">{{
+                                entry.publishers[0].name }}</a></span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Published Date -->
+                    {% if (entry.pubdate|string)[:10] != '0101-01-01' %}
+                    <div class="meta-row">
+                        <span class="meta-label">{{ _('Published') }}:</span>
+                        <span class="meta-value">{{ entry.pubdate|formatdate }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Identifiers -->
+                    {% if entry.identifiers|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">Ids:</span>
+                        <span class="meta-value">
+                            {% for identifier in entry.identifiers %}
+                            <a href="{{ identifier|escape }}" target="_blank" class="tag-link">{{
+                                identifier.format_type() }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Custom Columns -->
+                    {% if cc|length > 0 %}
+                    {% for c in cc %}
+                    {% if entry['custom_column_' ~ c.id]|length > 0 %}
+                    <div class="meta-row">
+                        <span class="meta-label">{{ c.name }}:</span>
+                        <span class="meta-value">
+                            {% for column in entry['custom_column_' ~ c.id] %}
+                            {% if c.datatype == 'rating' %}
+                            {{ (column.value / 2)|formatfloat }}
+                            {% else %}
+                            {% if c.datatype == 'bool' %}
+                            {% if column.value == true %}
+                            <span class="glyphicon glyphicon-ok"></span>
+                            {% else %}
+                            <span class="glyphicon glyphicon-remove"></span>
+                            {% endif %}
+                            {% else %}
+                            {% if c.datatype == 'float' %}
+                            {{ column.value|formatfloat(2) }}
+                            {% elif c.datatype == 'datetime' %}
+                            {{ column.value|formatdate }}
+                            {% elif c.datatype == 'comments' %}
+                            {{ column.value|safe }}
+                            {% elif c.datatype == 'series' %}
+                            {{ '%s [%s]' % (column.value, column.extra|formatfloat(2)) }}
+                            {% elif c.datatype == 'text' %}
+                            {{ column.value.strip() }}{% if not loop.last %}, {% endif %}
+                            {% else %}
+                            {{ column.value }}
+                            {% endif %}
+                            {% endif %}
+                            {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- User State (Read/Archive) -->
+                {% if not current_user.is_anonymous %}
+                <div class="user-state-section">
+                    <form id="have_read_form" action="{{ url_for('web.toggle_read', book_id=entry.id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <label class="block-label">
+                        <label class="block-label" style="cursor: pointer;">
                             <input id="have_read_cb" data-checked="{{ _('Mark As Unread') }}"
-                                   data-unchecked="{{ _('Mark As Read') }}" type="checkbox"
-                                   {% if entry.read_status %}checked{% endif %}>
-                            <span data-toggle="tooltip" title="{{_('Mark Book as Read or Unread')}}">{{ _('Read') }}</span>
+                                data-unchecked="{{ _('Mark As Read') }}" type="checkbox" {% if entry.read_status
+                                %}checked{% endif %}>
+                            <span>{{ _('Read') }}</span>
                         </label>
                     </form>
-                    </p>
+
                     {% if current_user.check_visibility(32768) %}
-                        <p>
-                        <form id="archived_form" action="{{ url_for('web.toggle_archived', book_id=entry.id) }}"
-                              method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <label class="block-label">
-                                <input id="archived_cb" data-checked="{{ _('Restore from archive') }}"
-                                       data-unchecked="{{ _('Add to archive') }}" type="checkbox"
-                                       {% if entry.is_archived %}checked{% endif %}>
-                                <span data-toggle="tooltip" title="{{_('Mark Book as archived or not, to hide it in Calibre-Web and delete it from Kobo Reader')}}">{{ _('Archive') }}</span>
-                            </label>
-                        </form>
-                        </p>
+                    <form id="archived_form" action="{{ url_for('web.toggle_archived', book_id=entry.id) }}"
+                        method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label class="block-label" style="cursor: pointer;">
+                            <input id="archived_cb" data-checked="{{ _('Restore from archive') }}"
+                                data-unchecked="{{ _('Add to archive') }}" type="checkbox" {% if entry.is_archived
+                                %}checked{% endif %}>
+                            <span>{{ _('Archive') }}</span>
+                        </label>
+                    </form>
                     {% endif %}
                 </div>
-            {% endif %}
-
-
-            {% if entry.comments|length > 0 and entry.comments[0].text|length > 0 %}
-                <div class="comments">
-                    <h3 id="decription">{{ _('Description:') }}</h3>
-                    {{ entry.comments[0].text|safe }}
-                </div>
-            {% endif %}
-
-
-            <div class="more-stuff">
-
-                {% if current_user.is_authenticated %}
-                    {% if current_user.shelf.all() or g.shelves_access %}
-                        <div id="shelf-actions" class="btn-toolbar" role="toolbar">
-                            <div class="btn-group" role="group" aria-label="Add to shelves">
-                                <button id="add-to-shelf" type="button"
-                                        class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown"
-                                        aria-haspopup="true" aria-expanded="false">
-                                    <span class="glyphicon glyphicon-list"></span> {{ _('Add to shelf') }}
-                                    <span class="caret"></span>
-                                </button>
-                                <ul id="add-to-shelves" class="dropdown-menu" aria-labelledby="add-to-shelf">
-                                    {% for shelf in g.shelves_access %}
-                                        {% if not shelf.id in books_shelfs and ( not shelf.is_public or current_user.role_edit_shelfs() ) %}
-                                            <li>
-                                                <a data-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
-                                                   data-remove-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
-                                                   data-shelf-action="add"
-                                                >
-                                                    {{ shelf.name }}{% if shelf.is_public == 1 %}
-                                                        {{ _('(Public)') }}{% endif %}
-                                                </a>
-                                            </li>
-                                        {% endif %}
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            <div id="remove-from-shelves" class="btn-group" role="group"
-                                 aria-label="Remove from shelves">
-                                {% if books_shelfs %}
-                                    {% for shelf in g.shelves_access %}
-                                        {% if shelf.id in books_shelfs %}
-                                            <a data-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
-                                               data-add-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
-                                               class="btn btn-sm btn-default" role="button"
-                                               data-shelf-action="remove"
-                                            >
-								              <span {% if not shelf.is_public or current_user.role_edit_shelfs() %}
-								                  class="glyphicon glyphicon-remove"
-								              {% endif %}></span> {{ shelf.name }}{% if shelf.is_public == 1 %} {{ _('(Public)') }}{% endif %}
-                                            </a>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                            <div id="shelf-action-errors" class="pull-left" role="alert"></div>
-                        </div>
-                    {% endif %}
-
                 {% endif %}
+
+                <!-- Remove from Shelves (Reference Logic) -->
+                {% if current_user.is_authenticated and books_shelfs %}
+                <div class="remove-shelves-section" style="margin-top: 15px;">
+                    {% for shelf in g.shelves_access %}
+                    {% if shelf.id in books_shelfs %}
+                    <a data-href="{{ url_for('shelf.remove_from_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                        data-add-href="{{ url_for('shelf.add_to_shelf', book_id=entry.id, shelf_id=shelf.id) }}"
+                        class="btn btn-sm btn-default" role="button" data-shelf-action="remove"
+                        style="margin-bottom: 5px;">
+                        <span class="glyphicon glyphicon-remove"></span> {{ shelf.name }}
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Edit Button -->
                 {% if current_user.role_edit() %}
-                    <div class="col-sm-12">
-                        <div class="btn-group" role="group" aria-label="Edit/Delete book">
-                            <a href="{{ url_for('edit-book.show_edit_book', book_id=entry.id) }}"
-                               class="btn btn-sm btn-primary" id="edit_book" role="button"><span
-                                    class="glyphicon glyphicon-edit"></span> {{ _('Edit Metadata') }}</a>
-                        </div>
-                        <div class="btn btn-default" data-back="{{ url_for('web.index') }}" id="back">{{_('Cancel')}}</div>
-                   </div>
+                <div style="margin-top: 20px;">
+                    <a href="{{ url_for('edit-book.show_edit_book', book_id=entry.id) }}" class="vs-btn style-brown"><i
+                            class="fas fa-edit"></i> {{ _('Edit Metadata') }}</a>
+                </div>
                 {% endif %}
+            </div>
         </div>
     </div>
+</div>
+
+<!-- Share Modal Overlay -->
+<div class="share-modal-overlay" id="shareOverlay" onclick="closeShareModal()"></div>
+
+<!-- Share Modal -->
+<div class="share-modal">
+    <div class="share-header">
+        <h3 class="share-title">Share to</h3>
+        <button class="share-close" onclick="closeShareModal()">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path
+                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                    fill="currentColor" />
+            </svg>
+        </button>
+    </div>
+    <div class="share-grid">
+        <button class="share-item" onclick="shareTo('whatsapp')">
+            <div class="share-icon-wrapper whatsapp-bg">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+                        fill="white" />
+                </svg>
+            </div>
+            <span>WhatsApp</span>
+        </button>
+        <button class="share-item" onclick="shareTo('facebook')">
+            <div class="share-icon-wrapper facebook-bg">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+                        fill="white" />
+                </svg>
+            </div>
+            <span>Facebook</span>
+        </button>
+        <button class="share-item" onclick="shareTo('twitter')">
+            <div class="share-icon-wrapper twitter-bg">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                        fill="white" />
+                </svg>
+            </div>
+            <span>X</span>
+        </button>
+        <button class="share-item" onclick="shareTo('linkedin')">
+            <div class="share-icon-wrapper linkedin-bg">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+                        fill="white" />
+                </svg>
+            </div>
+            <span>LinkedIn</span>
+        </button>
+        <button class="share-item" onclick="shareTo('instagram')">
+            <div class="share-icon-wrapper instagram-bg">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"
+                        fill="white" />
+                </svg>
+            </div>
+            <span>Instagram</span>
+        </button>
+    </div>
+    <div class="copy-link-container">
+        <div class="link-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+        </div>
+        <div class="link-text">{{ request.url }}</div>
+        <button class="copy-btn" onclick="copyShareLink()">Copy</button>
+    </div>
+</div>
+
+<!-- Share Toast -->
+<div id="shareToast" class="share-toast">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span id="toastMessage">Link copied to clipboard</span>
 </div>
 {% endblock %}
 
@@ -363,7 +746,122 @@
 </script>
 <script src="{{ url_for('static', filename='js/details.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
-<script type="text/javascript">
-</script>
+<script>
+    function openShareModal() {
+        let overlay = document.getElementById('shareOverlay');
+        let modal = document.querySelector('.share-modal');
 
+        // Move to body to escape potential stacking contexts (transforms) of parent modals
+        // This ensures the overlay covers the entire screen and the modal is positioned correctly
+        if (overlay && modal && overlay.parentNode !== document.body) {
+            // Remove any existing stale overlays/modals in body first (from previous opens)
+            const existingOverlays = document.querySelectorAll('body > .share-modal-overlay');
+            const existingModals = document.querySelectorAll('body > .share-modal');
+            existingOverlays.forEach(el => el.remove());
+            existingModals.forEach(el => el.remove());
+
+            document.body.appendChild(overlay);
+            document.body.appendChild(modal);
+        }
+
+        // Trigger reflow/repaint before adding active class for transition
+        if (overlay) {
+            // Force reflow
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+        }
+    }
+
+    function closeShareModal() {
+        const overlay = document.getElementById('shareOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+
+    // Store the correct book URL from the server-side template
+    const bookUrl = "{{ url_for('web.show_book', book_id=entry.id, _external=True) }}";
+
+    function shareTo(platform) {
+        const url = encodeURIComponent(bookUrl);
+        const title = encodeURIComponent("{{ entry.title }}");
+        let shareUrl = '';
+
+        switch (platform) {
+            case 'whatsapp':
+                shareUrl = `https://api.whatsapp.com/send?text=${title}%20${url}`;
+                break;
+            case 'facebook':
+                shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+                break;
+            case 'twitter':
+                shareUrl = `https://twitter.com/intent/tweet?text=${title}&url=${url}`;
+                break;
+            case 'linkedin':
+                shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+                break;
+            case 'instagram':
+                copyShareLink("Link copied! Paste it in your Instagram Bio or Story.");
+                shareUrl = 'https://www.instagram.com/';
+                break;
+        }
+
+        if (shareUrl) {
+            window.open(shareUrl, '_blank');
+        }
+    }
+
+    async function copyShareLink(message = "Link Copied!") {
+        try {
+            // Try modern API first
+            await navigator.clipboard.writeText(bookUrl);
+            showToast(message);
+        } catch (err) {
+            // Fallback for older browsers or non-secure contexts
+            const el = document.createElement('textarea');
+            el.value = bookUrl;
+            el.setAttribute('readonly', '');
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            try {
+                document.execCommand('copy');
+                showToast(message);
+            } catch (e) {
+                console.error('Fallback copy failed', e);
+                showToast("Failed to copy link");
+            }
+            document.body.removeChild(el);
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('shareToast');
+        const toastMsg = document.getElementById('toastMessage');
+
+        // Ensure toast is in body to be visible over modals
+        if (toast && toast.parentNode !== document.body) {
+            document.body.appendChild(toast);
+        }
+
+        if (toast && toastMsg) {
+            toastMsg.innerText = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    }
+
+    // Initialize: Ensure share modal is closed on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        const overlay = document.getElementById('shareOverlay');
+        if (overlay) {
+            // Ensure the modal starts closed (remove any active class that might be present)
+            overlay.classList.remove('active');
+        }
+    });
+</script>
 {% endblock %}

@@ -25,7 +25,10 @@ from .constants import CONFIG_DIR as _CONFIG_DIR
 from .constants import STABLE_VERSION as _STABLE_VERSION
 from .constants import NIGHTLY_VERSION as _NIGHTLY_VERSION
 from .constants import DEFAULT_SETTINGS_FILE, DEFAULT_GDRIVE_FILE
+from . import logger
 
+
+log = logger.create()
 
 def version_info():
     if _NIGHTLY_VERSION[1].startswith('$Format'):
@@ -55,8 +58,9 @@ class CliParameter(object):
         parser = argparse.ArgumentParser(description='Calibre Web is a web app providing '
                                                      'a interface for browsing, reading and downloading eBooks\n',
                                          prog='cps.py')
-        parser.add_argument('-p', metavar='path', help='path and name to settings db, e.g. /opt/cw.db')
-        parser.add_argument('-g', metavar='path', help='path and name to gdrive db, e.g. /opt/gd.db')
+        # For PostgreSQL, database paths are handled via environment variables
+        parser.add_argument('-p', metavar='path', help='path and name to settings db (Not used for PostgreSQL - use environment variables)')
+        parser.add_argument('-g', metavar='path', help='path and name to gdrive db (Not used for PostgreSQL - use environment variables)')
         parser.add_argument('-c', metavar='path', help='path and name to SSL certfile, '
                                                        'e.g. /opt/test.cert, works only in combination with keyfile')
         parser.add_argument('-k', metavar='path', help='path and name to SSL keyfile, e.g. /opt/test.key, '
@@ -79,14 +83,19 @@ class CliParameter(object):
         args = parser.parse_args()
 
         self.logpath = args.o or ""
+        
+        # For PostgreSQL, database configuration is handled via environment variables
         self.settings_path = args.p or os.path.join(_CONFIG_DIR, DEFAULT_SETTINGS_FILE)
         self.gd_path = args.g or os.path.join(_CONFIG_DIR, DEFAULT_GDRIVE_FILE)
+        
+        log.info(f"CLI Settings path: {self.settings_path} (PostgreSQL uses environment variables)")
 
-        if os.path.isdir(self.settings_path):
-            self.settings_path = os.path.join(self.settings_path, DEFAULT_SETTINGS_FILE)
-
-        if os.path.isdir(self.gd_path):
-            self.gd_path = os.path.join(self.gd_path, DEFAULT_GDRIVE_FILE)
+        # Check if old SQLite database paths are being used and warn
+        if args.p:
+            log.warning("SQLite database path specified but PostgreSQL is being used. Database paths are now configured via environment variables.")
+        
+        if args.g:
+            log.warning("SQLite GDrive database path specified but PostgreSQL is being used. Database paths are now configured via environment variables.")
 
         # handle and check parameter for ssl encryption
         self.certfilepath = None
@@ -146,3 +155,46 @@ class CliParameter(object):
         if self.user_credentials and ":" not in self.user_credentials:
             print("No valid 'username:password' format")
             sys.exit(3)
+
+        # Log PostgreSQL configuration status
+        self._log_postgresql_config()
+
+    def _log_postgresql_config(self):
+        """Log PostgreSQL configuration status"""
+        from dotenv import load_dotenv
+        import sys
+        import os
+        
+        # Import get_env_path from utils
+        # We need to be careful here since this runs early in initialization
+        try:
+            from .utils import get_env_path
+            env_path = get_env_path()
+        except ImportError:
+            # Fallback if utils not available yet
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            env_path = os.path.join(project_root, '.env')
+        
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            log.info(f"Loading PostgreSQL configuration from: {env_path}")
+        else:
+            log.warning(f".env file not found at: {env_path}")
+        
+        db_user = os.getenv("DB_USERNAME")
+        db_host = os.getenv("DB_HOST")
+        db_port = os.getenv("DB_PORT")
+        db_name_app = os.getenv("DATABASENAME_APP")
+        
+        if all([db_user, db_host, db_port, db_name_app]):
+            log.info("PostgreSQL configuration detected via environment variables")
+            log.info(f"Database Host: {db_host}:{db_port}")
+            log.info(f"App Database: {db_name_app}")
+        else:
+            log.warning("Incomplete PostgreSQL environment variables detected")
+            missing_vars = []
+            if not db_user: missing_vars.append("DB_USERNAME")
+            if not db_host: missing_vars.append("DB_HOST")
+            if not db_port: missing_vars.append("DB_PORT")
+            if not db_name_app: missing_vars.append("DATABASENAME_APP")
+            log.warning(f"Missing environment variables: {', '.join(missing_vars)}")

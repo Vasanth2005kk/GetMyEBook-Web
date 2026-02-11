@@ -1,0 +1,163 @@
+{% extends "layouts/base.html" %}
+
+{% block main %}
+<!-- {% include "layouts/partials/navbar.html" %} -->
+
+<div class="banner">
+    <h1 class="text-center">Dev Forum.</h1>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 col-lg-6 mx-auto">
+                <p class="text-center">
+                    Ask a development question or answer others questions.
+                </p>
+                <form action="{{ url_for('main.search') }}" method="GET" class="mt-4">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" placeholder="Search threads..."
+                            value="{{ search_query if search_query else '' }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="my-4">
+        <div class="row py-4">
+            <div class="col-sm-12 col-lg-6">
+
+            </div>
+            <div class="col-sm-12 col-lg-6">
+                <div class="d-flex justify-content-end">
+                    <select class="selectpicker" id="secondary-filter">
+                        <option value="all" {% if secondary_filter==None %} selected {% endif %}>
+                            All
+                        </option>
+
+                        <option value="answered" {% if secondary_filter=="answered" %} selected {% endif %}>
+                            Answered
+                        </option>
+                        <option value="unanswered" {% if secondary_filter=="unanswered" %} selected {% endif %}>
+                            Unanswered
+                        </option>
+                    </select>
+                    <select class="selectpicker" id="primary-filter">
+                        <option value="recent" {% if primary_filter=="recent" %} selected {% endif %}>
+                            Most recent
+                        </option>
+                        <option value="popular" {% if primary_filter=="popular" %} selected {% endif %}>
+                            Most popular
+                        </option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {% for thread in threads.items %}
+        <div class="question  p-4 bg-white mb-4 shadow-sm">
+            <div class="question-header">
+                <a href="{{ url_for('threads.show', category_slug=thread.category.slug, thread_slug=thread.slug) }}"
+                    class="question-title">
+                    {{ thread.title }}
+                </a>
+                <div class="d-flex justify-content-between">
+                    <small class="question-category">
+                        {{ thread.category.name }}
+                    </small>
+                    <small class="text-black">
+                        Posted by {{ thread.owner.name }}
+                    </small>
+                </div>
+
+            </div>
+            <div class="row">
+                <div class="col-md-12 col-lg-9">
+                    <p class="question-summary">
+                        {{ thread.summary }}
+                    </p>
+                </div>
+                <div class="col-md-12 col-lg-3">
+                    <div class="d-flex justify-content-end">
+                        <div class="question-status">
+                            <span>
+                                {{ thread.comments|length }}
+                            </span>
+                            <span>
+                                answers
+                            </span>
+                        </div>
+                        <div class="question-status">
+                            <span>
+                                {{ thread.views_count }}
+                            </span>
+                            <span>
+                                views
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if threads.items | length == 0 %}
+        <div class="p-4 text-center">
+            {% if search_query %}
+            <h3 class="">No search results found for "{{ search_query }}"</h3>
+            {% else %}
+            <h3 class="">There are not questions yet asked... </h3>
+            {% endif %}
+            <img src="{{ url_for('static', filename='forum/images/checklist.svg') }}" width="200" />
+        </div>
+        {% endif %}
+
+        {% if threads.pages > 1 %}
+        <div class="my-2">
+            <nav aria-label="Page navigation example" class="d-flex justify-content-end">
+                <ul class="pagination">
+                    <li class="page-item
+                            {% if not threads.has_prev %}
+                                disabled
+                            {% endif %}
+                        ">
+                        <a class="page-link" href="{{ url_for('main.index', page=threads.prev_num) }}">&larr;</a>
+                    </li>
+
+                    {% for page in threads.iter_pages() %}
+                    {% if page %}
+                    <li class="page-item
+                                    {{ " disabled" if page==threads.page else "" }} ">
+                                    <a class=" page-link" href="{{ url_for('main.index', page=page) }}">
+                        {{ page }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">
+                            ...
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    <li class="page-item
+                            {% if not threads.has_next %}
+                                disabled
+                            {% endif %}
+                        "><a class="page-link" href="{{ url_for('main.index', page=threads.next_num) }}">&rarr;</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+{% endblock %}

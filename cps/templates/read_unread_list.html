@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% import 'image.html' as image %}
+
+{% block body %}
+<div class="discover">
+    <h2 class="book-titles {{title}}">{{title}}</h2>
+
+    <!-- Sort Dropdown (kept from index.html for consistency) -->
+    <div class="filterheader hidden-xs" style="text-align: right; margin-bottom: 20px;">
+        <div class="dropdown" style="display: inline-block;">
+            <button class="btn btn-default dropdown-toggle sort-dropdown-btn" type="button" id="sortMenu"
+                data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                <i class="fas fa-sort-amount-down" style="color: #ff7174;"></i> {{_('Sort By')}}
+                <span class="caret" style="margin-left: 5px;"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right sort-dropdown-menu" aria-labelledby="sortMenu">
+                <li><a href="{{url_for('web.books_list', data=page, book_id=id, sort_param='new')}}"
+                        class="{% if order == ' new' %}active-sort{% endif %}">{{_('Date: Newest First')}}</a></li>
+                <li><a href="{{url_for('web.books_list', data=page, book_id=id, sort_param='old')}}"
+                        class="{% if order == ' old' %}active-sort{% endif %}">{{_('Date: Oldest First')}}</a></li>
+                <li role="separator" class="divider" style="margin: 5px 0; opacity: 0.5;"></li>
+                <li><a href="{{url_for('web.books_list', data=page, book_id=id, sort_param='abc')}}"
+                        class="{% if order == ' abc' %}active-sort{% endif %}">{{_('Title: A to Z')}}</a></li>
+                <li><a href="{{url_for('web.books_list', data=page, book_id=id, sort_param='zyx')}}"
+                        class="{% if order == ' zyx' %}active-sort{% endif %}">{{_('Title: Z to A')}}</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="read-unread-container">
+        {% if entries %}
+        {% for entry in entries %}
+        <div class="read-book-card">
+            <div class="read-book-cover-wrapper">
+                <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}">
+                    {{ image.book_cover(entry.Books) }}
+                </a>
+            </div>
+            <div class="read-book-details">
+                <h3 class="read-book-title">
+                    <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}">{{ entry.Books.title }}</a>
+                </h3>
+                {% if entry.Books.authors|length > 0 %}
+                <p class="read-book-author">
+                    <i class="fas fa-pen-nib"></i> {{ entry.Books.authors[0].name.replace('|',',') }}
+                </p>
+                {% endif %}
+
+                {% if entry.Books.comments %}
+                <div class="read-book-comment">
+                    {{ entry.Books.comments|striptags|truncate(100) }}
+                </div>
+                {% endif %}
+
+                <div class="read-book-meta">
+                    {% if entry.Books.ratings.__len__() > 0 %}
+                    <div class="read-book-rating">
+                        <span class="fas fa-star"></span> {{ (entry.Books.ratings[0].rating/2)|round(1) }}
+                    </div>
+                    {% endif %}
+
+                    {% if entry[2] == True %}
+                    <span class="read-status-badge"><i class="fas fa-check-circle"></i> {{_('Read')}}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="no-books-found">
+            <h3>{{_('No books found')}}</h3>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

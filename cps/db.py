@@ -25,10 +25,9 @@ from urllib.parse import quote
 import unidecode
 from weakref import WeakSet
 
-from sqlite3 import OperationalError as sqliteOperationalError
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine , inspect
 from sqlalchemy import Table, Column, ForeignKey, CheckConstraint
-from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float
+from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float, Sequence
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -46,10 +45,10 @@ from flask_babel import gettext as _
 from flask_babel import get_locale
 from flask import flash
 
-from . import logger, ub, isoLanguages
+from . import logger, ub, isoLanguages,create_metadata_psql
 from .pagination import Pagination
-
-
+from .utils import get_env_path , get_metadata_path
+from .create_metadata_psql import migrate_sqlite_to_postgres        
 log = logger.create()
 
 cc_exceptions = ['composite', 'series']
@@ -230,12 +229,14 @@ class Authors(Base):
     name = Column(String(collation='NOCASE'), unique=True, nullable=False)
     sort = Column(String(collation='NOCASE'))
     link = Column(String, nullable=False, default="")
+    image = Column(String, nullable=False, default="")
 
-    def __init__(self, name, sort, link=""):
+    def __init__(self, name, sort, link="", image=""):
         super().__init__()
         self.name = name
         self.sort = sort
         self.link = link
+        self.image = image
 
     def get(self):
         return self.name
@@ -244,7 +245,7 @@ class Authors(Base):
         return self.name == other
 
     def __repr__(self):
-        return "<Authors('{0},{1}{2}')>".format(self.name, self.sort, self.link)
+        return "<Authors('{0},{1}{2}{3}')>".format(self.name, self.sort, self.link, self.image)
 
 
 class Series(Base):
@@ -336,7 +337,6 @@ class Publishers(Base):
 
 class Data(Base):
     __tablename__ = 'data'
-    __table_args__ = {'schema': 'calibre'}
 
     id = Column(Integer, primary_key=True)
     book = Column(Integer, ForeignKey('books.id'), nullable=False)
@@ -351,7 +351,6 @@ class Data(Base):
         self.uncompressed_size = uncompressed_size
         self.name = name
 
-    # ToDo: Check
     def get(self):
         return self.name
 
@@ -361,7 +360,7 @@ class Data(Base):
 
 class Metadata_Dirtied(Base):
     __tablename__ = 'metadata_dirtied'
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Sequence('metadata_dirtied_id_seq'), primary_key=True, autoincrement=True)
     book = Column(Integer, ForeignKey('books.id'), nullable=False, unique=True)
 
     def __init__(self, book):
@@ -372,7 +371,7 @@ class Metadata_Dirtied(Base):
 class Books(Base):
     __tablename__ = 'books'
 
-    DEFAULT_PUBDATE = datetime(101, 1, 1, 0, 0, 0, 0)  # ("0101-01-01 00:00:00+00:00")
+    DEFAULT_PUBDATE = datetime(101, 1, 1, 0, 0, 0, 0)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(collation='NOCASE'), nullable=False, default='Unknown')
@@ -456,7 +455,7 @@ class CustomColumns(Base):
         content['category_sort'] = "value"
         content['is_csp'] = False
         content['is_editable'] = self.editable
-        content['rec_index'] = sequence + 22     # toDo why ??
+        content['rec_index'] = sequence + 22
         if isinstance(value, datetime):
             content['#value#'] = {"__class__": "datetime.datetime",
                                   "__value__": value.strftime("%Y-%m-%dT%H:%M:%S+00:00")}
@@ -472,7 +471,6 @@ class AlchemyEncoder(json.JSONEncoder):
 
     def default(self, o):
         if isinstance(o.__class__, DeclarativeMeta):
-            # an SQLAlchemy class
             fields = {}
             for field in [x for x in dir(o) if not x.startswith('_') and x != 'metadata' and x != "password"]:
                 if field == 'books':
@@ -483,9 +481,8 @@ class AlchemyEncoder(json.JSONEncoder):
                         data = data.replace("'", "\'")
                     elif isinstance(data, InstrumentedList):
                         el = list()
-                        # ele = None
                         for ele in data:
-                            if hasattr(ele, 'value'):       # converter for custom_column values
+                            if hasattr(ele, 'value'):
                                 el.append(str(ele.value))
                             elif ele.get:
                                 el.append(ele.get())
@@ -502,7 +499,6 @@ class AlchemyEncoder(json.JSONEncoder):
                     fields[field] = data
                 except Exception:
                     fields[field] = ""
-            # a json-encodable dict
             return fields
 
         return json.JSONEncoder.default(self, o)
@@ -513,13 +509,9 @@ class CalibreDB:
     engine = None
     config = None
     session_factory = None
-    # This is a WeakSet so that references here don't keep other CalibreDB
-    # instances alive once they reach the end of their respective scopes
     instances = WeakSet()
 
     def __init__(self, expire_on_commit=True, init=False):
-        """ Initialize a new CalibreDB session
-        """
         self.session = None
         if init:
             self.init_db(expire_on_commit)
@@ -533,7 +525,8 @@ class CalibreDB:
     def init_session(self, expire_on_commit=True):
         self.session = self.session_factory()
         self.session.expire_on_commit = expire_on_commit
-        self.update_title_sort(self.config)
+        # PostgreSQL doesn't need custom title_sort function
+        # self.update_title_sort(self.config)
 
     @classmethod
     def setup_db_cc_classes(cls, cc):
@@ -608,34 +601,55 @@ class CalibreDB:
 
     @classmethod
     def check_valid_db(cls, config_calibre_dir, app_db_path, config_calibre_uuid):
+        # For PostgreSQL, we assume the database is always valid if connection succeeds
+        # This method is simplified for PostgreSQL
         if not config_calibre_dir:
             return False, False
-        dbpath = os.path.join(config_calibre_dir, "metadata.db")
-        if not os.path.exists(dbpath):
-            return False, False
+        
+        # In PostgreSQL, we don't check for file existence
+        # Instead, we try to connect to the database
         try:
-            check_engine = create_engine('sqlite://',
-                                         echo=False,
-                                         isolation_level="SERIALIZABLE",
-                                         connect_args={'check_same_thread': False},
-                                         poolclass=StaticPool)
-            with check_engine.begin() as connection:
-                connection.execute(text("attach database '{}' as calibre;".format(dbpath)))
-                connection.execute(text("attach database '{}' as app_settings;".format(app_db_path)))
-                local_session = scoped_session(sessionmaker())
-                local_session.configure(bind=connection)
-                database_uuid = local_session().query(Library_Id).one_or_none()
-                # local_session.dispose()
+            # Test database connection by creating a temporary engine
+            from dotenv import load_dotenv
+            load_dotenv(get_env_path())
 
-            check_engine.connect()
-            db_change = config_calibre_uuid != database_uuid.uuid
-        except Exception:
+            DB_USER = os.getenv("DB_USERNAME")
+            DB_PASSWORD = os.getenv("DB_PASSWORD")
+            DB_HOST = os.getenv("DB_HOST")
+            DB_PORT = os.getenv("DB_PORT")
+            DB_NAME = os.getenv("DATABASENAME_APP")
+            
+            if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
+                log.error("Missing PostgreSQL environment variables")
+                return False, False
+            
+            import urllib.parse
+            encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+
+            DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            test_engine = create_engine(DATABASE_URL, echo=False)
+            inspector = inspect(test_engine)
+            # Only migrate if 'books' table does not exist
+            if 'books' not in inspector.get_table_names():
+                create_metadata_psql.migrate_sqlite_to_postgres(SQLITE_PATH=config_calibre_dir)
+
+            with test_engine.connect() as conn:
+                # Try to query the library_id table to verify connection
+                result = conn.execute(text("SELECT COUNT(*) FROM library_id"))
+                count = result.scalar()
+                log.info(f"PostgreSQL connection successful, library_id count: {count}")
+            
+            test_engine.dispose()
+            return True, False
+        except Exception as e:
+            log.error(f"PostgreSQL connection failed: {e}")
             return False, False
-        return True, db_change
 
     @classmethod
-    def update_config(cls, config):
+    def update_config(cls, config,config_calibre_dir,app_db_path):
         cls.config = config
+        cls.config_calibre_dir = config_calibre_dir
+        cls.app_db_path = app_db_path
 
     @classmethod
     def setup_db(cls, config_calibre_dir, app_db_path):
@@ -645,24 +659,72 @@ class CalibreDB:
             cls.config.invalidate()
             return None
 
-        dbpath = os.path.join(config_calibre_dir, "metadata.db")
-        if not os.path.exists(dbpath):
-            cls.config.invalidate()
-            return None
-
         try:
-            cls.engine = create_engine('sqlite://',
-                                       echo=False,
-                                       isolation_level="SERIALIZABLE",
-                                       connect_args={'check_same_thread': False},
-                                       poolclass=StaticPool)
-            with cls.engine.begin() as connection:
-                connection.execute(text("attach database '{}' as calibre;".format(dbpath)))
-                connection.execute(text("attach database '{}' as app_settings;".format(app_db_path)))
+            # PostgreSQL connection - using environment variables
+            from dotenv import load_dotenv
+            load_dotenv(get_env_path())
 
+            DB_USER = os.getenv("DB_USERNAME")
+            DB_PASSWORD = os.getenv("DB_PASSWORD")
+            DB_HOST = os.getenv("DB_HOST")
+            DB_PORT = os.getenv("DB_PORT")
+            DB_NAME = os.getenv("DATABASENAME_APP")
+            
+            if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
+                log.error("Missing required PostgreSQL environment variables")
+                cls.config.invalidate("Missing PostgreSQL environment variables")
+                return None
+            # Properly encode the password
+            import urllib.parse
+            encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
+
+            DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            
+            cls.engine = create_engine(
+                DATABASE_URL,
+                echo=False,
+                pool_pre_ping=True,
+                pool_recycle=300,
+                pool_size=10,
+                max_overflow=20
+            )
+            
+            # Test connection
             conn = cls.engine.connect()
-            # conn.text_factory = lambda b: b.decode(errors = 'ignore') possible fix for #1302
+            log.info(f"Successfully connected to PostgreSQL calibre database: {DATABASE_URL}")
+            
+
+            inspector = inspect(cls.engine)
+            table_name = 'custom_columns'
+            log.info(f"checking if config calibre_dir {config_calibre_dir} needs migration")
+            if os.path.exists(config_calibre_dir):
+                if table_name not in inspector.get_table_names():
+                    migrate_sqlite_to_postgres(
+                        SQLITE_PATH=get_metadata_path(path=config_calibre_dir)
+                        )
+
+                # Fix PostgreSQL sequences dynamically
+                tables_to_fix = [
+                    'books_authors_link', 'books_tags_link', 'books_series_link',
+                    'books_ratings_link', 'books_languages_link', 'books_publishers_link',
+                    'data', 'comments', 'identifiers', 'authors', 'series', 'ratings',
+                    'languages', 'publishers', 'tags', 'metadata_dirtied'
+                ]
+                for table in tables_to_fix:
+                    seq_name = f"{table}_id_seq"
+                    try:
+                        conn.execute(text(f"CREATE SEQUENCE IF NOT EXISTS {seq_name}"))
+                        try:
+                            conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN id SET DEFAULT nextval('{seq_name}')"))
+                        except Exception:
+                            pass
+                        conn.execute(text(f"SELECT setval('{seq_name}', COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"))
+                    except Exception as e:
+                        # Log but allow continue; table might missing or other issue
+                        log.debug(f"Sequence fix check for {table}: {e}")
+
         except Exception as ex:
+            log.error(f"Failed to connect to PostgreSQL: {ex}")
             cls.config.invalidate(ex)
             return None
 
@@ -673,22 +735,26 @@ class CalibreDB:
                 cc = conn.execute(text("SELECT id, datatype FROM custom_columns"))
                 cls.setup_db_cc_classes(cc)
             except OperationalError as e:
-                log.error_or_exception(e)
+                log.error_or_exception(f"Error setting up custom columns: {e}")
                 return None
 
-        cls.session_factory = scoped_session(sessionmaker(autocommit=False,
-                                                          autoflush=True,
-                                                          bind=cls.engine, future=True))
+        cls.session_factory = scoped_session(sessionmaker(
+            autocommit=False,
+            autoflush=True,
+            bind=cls.engine
+        ))
+        
         for inst in cls.instances:
             inst.init_session()
 
         cls._init = True
 
     def get_book(self, book_id):
+        log.info(f"Fetching book with ID: {book_id}")
         return self.session.query(Books).filter(Books.id == book_id).first()
 
     def get_total_book_count(self):
-        return self.session.query(Books).count();
+        return self.session.query(Books).count()
 
     def get_filtered_book(self, book_id, allow_show_archived=False):
         return self.session.query(Books).filter(Books.id == book_id). \
@@ -707,7 +773,6 @@ class CalibreDB:
                       isouter=True))
             except (KeyError, AttributeError, IndexError):
                 log.error("Custom Column No.{} does not exist in calibre database".format(read_column))
-                # Skip linking read column and return None instead of read status
                 bd = self.session.query(Books, None, ub.ArchivedBook.is_archived)
         return (bd.filter(Books.id == book_id)
                 .join(ub.ArchivedBook, and_(Books.id == ub.ArchivedBook.book_id,
@@ -720,7 +785,7 @@ class CalibreDB:
     def get_book_format(self, book_id, file_format):
         return self.session.query(Data).filter(Data.book == book_id).filter(Data.format == file_format).first()
 
-    def get_book_data_by_id(self,book_id):
+    def get_book_data_by_id(self, book_id):
         return self.session.query(Data).filter(Data.book == book_id).first()
 
     def set_metadata_dirty(self, book_id):
@@ -731,7 +796,7 @@ class CalibreDB:
         try:
             self.session.query(Metadata_Dirtied).filter(Metadata_Dirtied.book == book_id).delete()
             self.session.commit()
-        except (OperationalError) as e:
+        except OperationalError as e:
             self.session.rollback()
             log.error("Database error: {}".format(e))
 
@@ -780,25 +845,24 @@ class CalibreDB:
         return and_(lang_filter, pos_content_tags_filter, ~neg_content_tags_filter,
                     pos_content_cc_filter, ~neg_content_cc_filter, archived_filter)
 
+    # In the generate_linked_query method, fix the typo:
     def generate_linked_query(self, config_read_column, database):
         if not config_read_column:
             query = (self.session.query(database, ub.ArchivedBook.is_archived, ub.ReadBook.read_status)
-                     .select_from(Books)
-                     .outerjoin(ub.ReadBook,
+                    .select_from(Books)
+                    .outerjoin(ub.ReadBook,
                                 and_(ub.ReadBook.user_id == int(current_user.id), ub.ReadBook.book_id == Books.id)))
         else:
             try:
                 read_column = cc_classes[config_read_column]
-                query = (self.session.query(database, ub.ArchivedBook.is_archived, read_column.value)
-                         .select_from(Books)
-                         .outerjoin(read_column, read_column.book == Books.id))
+                query = (self.session.query(database, ub.ArchivedBook.is_archived, read_column.value)  # FIXED: is_archived not is_archised
+                        .select_from(Books)
+                        .outerjoin(read_column, read_column.book == Books.id))
             except (KeyError, AttributeError, IndexError):
                 log.error("Custom Column No.{} does not exist in calibre database".format(config_read_column))
-                # Skip linking read column and return None instead of read status
                 query = self.session.query(database, None, ub.ArchivedBook.is_archived)
         return query.outerjoin(ub.ArchivedBook, and_(Books.id == ub.ArchivedBook.book_id,
-                                                     int(current_user.id) == ub.ArchivedBook.user_id))
-
+                                                    int(current_user.id) == ub.ArchivedBook.user_id))
     @staticmethod
     def get_checkbox_sorted(inputlist, state, offset, limit, order, combo=False):
         outcome = list()
@@ -828,12 +892,28 @@ class CalibreDB:
                                            join_archive_read, config_read_column, *join):
         pagesize = pagesize or self.config.config_books_per_page
         if current_user.show_detail_random():
-            random_query = self.generate_linked_query(config_read_column, database)
-            randm = (random_query.filter(self.common_filters(allow_show_archived))
-                     .order_by(func.random())
-                     .limit(self.config.config_random_books).all())
+            log.info(f"fill_indexpage_with_archived_books all aguments: page={page}, pagesize={pagesize}, "
+                     f"database={database}, db_filter={db_filter}, order={order}, "
+                     f"allow_show_archived={allow_show_archived}, join_archive_read={join_archive_read}, "
+                     f"config_read_column={config_read_column}, join={join}")
+            
+            try:
+                random_query = self.generate_linked_query(config_read_column, database)
+                randm = (random_query.filter(self.common_filters(allow_show_archived))
+                         .order_by(func.random())
+                         .limit(self.config.config_random_books).all())
+            except OperationalError:
+                # Retry once if connection was lost
+                self.session.rollback()
+                random_query = self.generate_linked_query(config_read_column, database)
+                randm = (random_query.filter(self.common_filters(allow_show_archived))
+                         .order_by(func.random())
+                         .limit(self.config.config_random_books).all())
+            except Exception as e:
+                log.error(f"Error fetching random books: {e}")
+                randm = []
         else:
-            randm = false()
+            randm = []
         if join_archive_read:
             query = self.generate_linked_query(config_read_column, database)
         else:
@@ -861,10 +941,21 @@ class CalibreDB:
         pagination = list()
         try:
             pagination = Pagination(page, pagesize, query.count())
-            entries = query.order_by(*order).offset(off).limit(pagesize).all()
+            try:
+                entries = query.order_by(*order).offset(off).limit(pagesize).all()
+            except OperationalError:
+                self.session.rollback()
+                # Re-generate query after rollback
+                if join_archive_read:
+                    query = self.generate_linked_query(config_read_column, database)
+                else:
+                    query = self.session.query(database)
+                entries = query.order_by(*order).offset(off).limit(pagesize).all()
+            except Exception as e:
+                log.error(f"Error fetching books list: {e}")
+                entries = []
         except Exception as ex:
             log.error_or_exception(ex)
-        # display authors in right order
         entries = self.order_authors(entries, True, join_archive_read)
         return entries, randm, pagination
 
@@ -874,18 +965,14 @@ class CalibreDB:
             if combined:
                 sort_authors = entry.Books.author_sort.split('&')
                 ids = [a.id for a in entry.Books.authors]
-
             else:
                 sort_authors = entry.author_sort.split('&')
                 ids = [a.id for a in entry.authors]
             authors_ordered = list()
-            # error = False
             for auth in sort_authors:
                 results = self.session.query(Authors).filter(Authors.sort == auth.lstrip().strip()).all()
-                # ToDo: How to handle not found author name
                 if not len(results):
                     log.error("Author {} not found to display name in right order".format(auth.strip()))
-                    # error = True
                     break
                 for r in results:
                     if r.id in ids:
@@ -906,15 +993,14 @@ class CalibreDB:
 
     def get_typeahead(self, database, query, replace=('', ''), tag_filter=true()):
         query = query or ''
-        self.session.connection().connection.connection.create_function("lower", 1, lcase)
+        # PostgreSQL uses ILIKE for case-insensitive search
         entries = self.session.query(database).filter(tag_filter). \
             filter(func.lower(database.name).ilike("%" + query + "%")).all()
-        # json_dumps = json.dumps([dict(name=escape(r.name.replace(*replace))) for r in entries])
         json_dumps = json.dumps([dict(name=r.name.replace(*replace)) for r in entries])
         return json_dumps
 
     def check_exists_book(self, authr, title):
-        self.session.connection().connection.connection.create_function("lower", 1, lcase)
+        # PostgreSQL uses ILIKE for case-insensitive search
         q = list()
         author_terms = re.split(r'\s*&\s*', authr)
         for author_term in author_terms:
@@ -925,7 +1011,7 @@ class CalibreDB:
 
     def search_query(self, term, config, *join):
         term.strip().lower()
-        self.session.connection().connection.connection.create_function("lower", 1, lcase)
+        # PostgreSQL uses ILIKE for case-insensitive search
         q = list()
         author_terms = re.split("[, ]+", term)
         for author_term in author_terms:
@@ -994,15 +1080,16 @@ class CalibreDB:
 
         if with_count:
             if not languages:
-                languages = self.session.query(Languages, func.count('books_languages_link.book'))\
-                    .join(books_languages_link).join(Books)\
+                subquery = self.session.query(books_languages_link.c.lang_code, func.count(books_languages_link.c.book).label('count'))\
+                    .join(Books, Books.id == books_languages_link.c.book)\
                     .filter(self.common_filters(return_all_languages=return_all_languages)) \
-                    .group_by(text('books_languages_link.lang_code')).all()
+                    .group_by(books_languages_link.c.lang_code).subquery()
+                languages = self.session.query(Languages, subquery.c.count) \
+                    .join(subquery, Languages.id == subquery.c.lang_code).all()
             tags = list()
             for lang in languages:
                 tag = Category(isoLanguages.get_language_name(get_locale(), lang[0].lang_code), lang[0].lang_code)
                 tags.append([tag, lang[1]])
-            # Append all books without language to list
             if not return_all_languages:
                 no_lang_count = (self.session.query(Books)
                                  .outerjoin(books_languages_link).outerjoin(Languages)
@@ -1018,37 +1105,18 @@ class CalibreDB:
                     .join(books_languages_link) \
                     .join(Books) \
                     .filter(self.common_filters(return_all_languages=return_all_languages)) \
-                    .group_by(text('books_languages_link.lang_code')).all()
+                    .group_by(Languages.id).all()
             for lang in languages:
                 lang.name = isoLanguages.get_language_name(get_locale(), lang.lang_code)
             return sorted(languages, key=lambda x: x.name, reverse=reverse_order)
 
     def update_title_sort(self, config, conn=None):
-        # user defined sort function for calibre databases (Series, etc.)
-        def _title_sort(title):
-            # calibre sort stuff
-            title_pat = re.compile(config.config_title_regex, re.IGNORECASE)
-            match = title_pat.search(title)
-            if match:
-                prep = match.group(1)
-                title = title[len(prep):] + ', ' + prep
-            return title.strip()
-
-        try:
-            # sqlalchemy <1.4.24
-            conn = conn or self.session.connection().connection.driver_connection
-        except AttributeError:
-            # sqlalchemy >1.4.24 and sqlalchemy 2.0
-            conn = conn or self.session.connection().connection.connection
-        try:
-            conn.create_function("title_sort", 1, _title_sort)
-        except sqliteOperationalError:
-            pass
+        # PostgreSQL doesn't need custom title_sort function
+        # This function is kept for compatibility but does nothing in PostgreSQL
+        pass
 
     @classmethod
     def dispose(cls):
-        # global session
-
         for inst in cls.instances:
             old_session = inst.session
             inst.session = None
@@ -1079,7 +1147,8 @@ class CalibreDB:
 
     def reconnect_db(self, config, app_db_path):
         self.dispose()
-        self.engine.dispose()
+        if self.engine:
+            self.engine.dispose()
         self.setup_db(config.config_calibre_dir, app_db_path)
         self.update_config(config)
 

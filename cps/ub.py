@@ -29,20 +29,9 @@ from binascii import hexlify
 from .cw_login import AnonymousUserMixin, current_user
 from .cw_login import user_logged_in
 
-try:
-    from flask_dance.consumer.backend.sqla import OAuthConsumerMixin
-    oauth_support = True
-except ImportError as e:
-    # fails on flask-dance >1.3, due to renaming
-    try:
-        from flask_dance.consumer.storage.sqla import OAuthConsumerMixin
-        oauth_support = True
-    except ImportError as e:
-        OAuthConsumerMixin = BaseException
-        oauth_support = False
 from sqlalchemy import create_engine, exc, exists, event, text
 from sqlalchemy import Column, ForeignKey
-from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON
+from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON , Text
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.expression import func
 try:
@@ -52,9 +41,9 @@ except ImportError:
     from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import backref, relationship, sessionmaker, Session, scoped_session
 from werkzeug.security import generate_password_hash
-
+from dotenv import load_dotenv
 from . import constants, logger
-
+from.utils import get_env_path
 
 log = logger.create()
 
@@ -64,11 +53,18 @@ Base = declarative_base()
 searched_ids = {}
 
 logged_in = dict()
+oauth_support = True
 
+load_dotenv(get_env_path())
+
+DB_USER = os.getenv("DB_USERNAME")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DATABASENAME_APP")  # app database name
 
 def signal_store_user_session(object, user):
     store_user_session()
-
 
 def store_user_session():
     _user = flask_session.get('_user_id', "")
@@ -90,7 +86,6 @@ def store_user_session():
     else:
         log.error("No user id in session")
 
-
 def delete_user_session(user_id, session_key):
     try:
         log.debug("Deleted session_key: " + session_key)
@@ -100,7 +95,6 @@ def delete_user_session(user_id, session_key):
     except (exc.OperationalError, exc.InvalidRequestError) as ex:
         session.rollback()
         log.exception(ex)
-
 
 def check_user_session(user_id, session_key, random):
     try:
@@ -120,7 +114,6 @@ def check_user_session(user_id, session_key, random):
         log.exception(e)
         return False
 
-
 user_logged_in.connect(signal_store_user_session)
 
 def store_ids(result):
@@ -134,7 +127,6 @@ def store_combo_ids(result):
     for element in result:
         ids.append(element[0].id)
     searched_ids[current_user.id] = ids
-
 
 class UserBase:
 
@@ -232,11 +224,8 @@ class UserBase:
     def __repr__(self):
         return '<User %r>' % self.name
 
-
-# Baseclass for Users in Calibre-Web, settings which are depending on certain users are stored here. It is derived from
-# User Base (all access methods are declared there)
 class User(UserBase, Base):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
     __table_args__ = {'sqlite_autoincrement': True}
 
     id = Column(Integer, primary_key=True)
@@ -257,14 +246,74 @@ class User(UserBase, Base):
     remote_auth_token = relationship('RemoteAuthToken', backref='user', lazy='dynamic')
     view_settings = Column(JSON, default={})
     kobo_only_shelves_sync = Column(Integer, default=0)
+    
+    # Forum-related columns
+    forum_avatar = Column(String(150), default="avatar.png")
+    forum_email_verified_at = Column(DateTime, nullable=True, default=None)
+    
+    # Forum relationships (will be added when we update forum models)
+    # threads = relationship("Thread", back_populates="owner")
+    # comments = relationship("Comment", back_populates="owner")
 
+    @property
+    def profile_picture(self):
+        """Return forum avatar URL"""
+        from flask import url_for
+        return url_for('static', filename="forum/images/avatars/" + self.forum_avatar)
 
-if oauth_support:
-    class OAuth(OAuthConsumerMixin, Base):
-        provider_user_id = Column(String(256))
-        user_id = Column(Integer, ForeignKey(User.id))
-        user = relationship(User)
+    def json_attributes(self):
+        """Return JSON-serializable attributes for JavaScript (forum-compatible)"""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "profilePicture": self.profile_picture,
+            "email_verified": self.forum_email_verified_at is not None,
+            "isAdmin": self.role_admin()
+        }
 
+oauth_support = True
+
+class OAuth(Base):
+    __tablename__ = 'oauth'
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(String(50), nullable=False)
+    provider_user_id = Column(String(256), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id))
+    token = Column(Text)  # Store token as JSON string
+    user = relationship(User)
+
+    def __repr__(self):
+        return f'<OAuth {self.provider}:{self.provider_user_id}>'
+
+class SSO_User(Base):
+    """User model for storing Google SSO authenticated users"""
+    
+    __tablename__ = 'sso_users'
+    
+    id = Column(Integer, primary_key=True)
+    google_id = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    picture = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_login = Column(DateTime, default=datetime.datetime.utcnow, nullable=True)
+    
+    def __repr__(self):
+        return f'<User {self.email}>'
+    
+    def to_dict(self):
+        """Convert user object to dictionary"""
+        return {
+            'id': self.id,
+            'google_id': self.google_id,
+            'email': self.email,
+            'name': self.name,
+            'picture': self.picture,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
 
 class OAuthProvider(Base):
     __tablename__ = 'oauthProvider'
@@ -275,9 +324,6 @@ class OAuthProvider(Base):
     oauth_client_secret = Column(String)
     active = Column(Boolean)
 
-
-# Class for anonymous user is derived from User base and completely overrides methods and properties for the
-# anonymous user
 class Anonymous(AnonymousUserMixin, UserBase):
     def __init__(self):
         self.kobo_only_shelves_sync = None
@@ -295,22 +341,49 @@ class Anonymous(AnonymousUserMixin, UserBase):
         self.loadSettings()
 
     def loadSettings(self):
-        data = session.query(User).filter(User.role.op('&')(constants.ROLE_ANONYMOUS) == constants.ROLE_ANONYMOUS)\
-            .first()  # type: User
-        self.name = data.name
-        self.role = data.role
-        self.id=data.id
-        self.sidebar_view = data.sidebar_view
-        self.default_language = data.default_language
-        self.locale = data.locale
-        self.kindle_mail = data.kindle_mail
-        self.denied_tags = data.denied_tags
-        self.allowed_tags = data.allowed_tags
-        self.denied_column_value = data.denied_column_value
-        self.allowed_column_value = data.allowed_column_value
-        self.view_settings = data.view_settings
-        self.kobo_only_shelves_sync = data.kobo_only_shelves_sync
+        try:
+            data = session.query(User).filter(User.role.op('&')(constants.ROLE_ANONYMOUS) == constants.ROLE_ANONYMOUS)\
+                .first()  # type: User
+            
+            # Check if anonymous user exists in database
+            if data is None:
+                log.warning("No anonymous user found in database. Using default anonymous settings.")
+                self._set_default_anonymous_settings()
+                return
+                
+            self.name = data.name
+            self.role = data.role
+            self.id = data.id
+            self.sidebar_view = data.sidebar_view
+            self.default_language = data.default_language
+            self.locale = data.locale
+            self.kindle_mail = data.kindle_mail
+            self.denied_tags = data.denied_tags
+            self.allowed_tags = data.allowed_tags
+            self.denied_column_value = data.denied_column_value
+            self.allowed_column_value = data.allowed_column_value
+            self.view_settings = data.view_settings
+            self.kobo_only_shelves_sync = data.kobo_only_shelves_sync
+            
+        except Exception as e:
+            log.error(f"Error loading anonymous user settings: {e}")
+            self._set_default_anonymous_settings()
 
+    def _set_default_anonymous_settings(self):
+        """Set default settings when no anonymous user exists in database"""
+        self.name = "Guest"
+        self.role = constants.ROLE_ANONYMOUS
+        self.id = 0
+        self.sidebar_view = None
+        self.default_language = "all"
+        self.locale = "en"
+        self.kindle_mail = ""
+        self.denied_tags = ""
+        self.allowed_tags = ""
+        self.denied_column_value = ""
+        self.allowed_column_value = ""
+        self.view_settings = {}
+        self.kobo_only_shelves_sync = 0
 
     def role_admin(self):
         return False
@@ -341,15 +414,15 @@ class Anonymous(AnonymousUserMixin, UserBase):
             flask_session['view'][page] = dict()
         flask_session['view'][page][prop] = value
 
+
 class User_Sessions(Base):
     __tablename__ = 'user_session'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     session_key = Column(String, default="")
     random = Column(String, default="")
     expiry = Column(Integer)
-
 
     def __init__(self, user_id, session_key, random, expiry):
         super().__init__()
@@ -358,8 +431,6 @@ class User_Sessions(Base):
         self.random = random
         self.expiry = expiry
 
-
-# Baseclass representing Shelfs in calibre-web in app.db
 class Shelf(Base):
     __tablename__ = 'shelf'
 
@@ -367,7 +438,7 @@ class Shelf(Base):
     uuid = Column(String, default=lambda: str(uuid.uuid4()))
     name = Column(String)
     is_public = Column(Integer, default=0)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     kobo_sync = Column(Boolean, default=False)
     books = relationship("BookShelf", backref="ub_shelf", cascade="all, delete-orphan", lazy="dynamic")
     created = Column(DateTime, default=datetime.datetime.utcnow)
@@ -376,8 +447,6 @@ class Shelf(Base):
     def __repr__(self):
         return '<Shelf %d:%r>' % (self.id, self.name)
 
-
-# Baseclass representing Relationship between books and Shelfs in Calibre-Web in app.db (N:M)
 class BookShelf(Base):
     __tablename__ = 'book_shelf_link'
 
@@ -390,16 +459,13 @@ class BookShelf(Base):
     def __repr__(self):
         return '<Book %r>' % self.id
 
-
-# This table keeps track of deleted Shelves so that deletes can be propagated to any paired Kobo device.
 class ShelfArchive(Base):
     __tablename__ = 'shelf_archive'
 
     id = Column(Integer, primary_key=True)
     uuid = Column(String)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     last_modified = Column(DateTime, default=datetime.datetime.utcnow)
-
 
 class ReadBook(Base):
     __tablename__ = 'book_read_link'
@@ -410,7 +476,7 @@ class ReadBook(Base):
 
     id = Column(Integer, primary_key=True)
     book_id = Column(Integer, unique=False)
-    user_id = Column(Integer, ForeignKey('user.id'), unique=False)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=False)
     read_status = Column(Integer, unique=False, default=STATUS_UNREAD, nullable=False)
     kobo_reading_state = relationship("KoboReadingState", uselist=False,
                                       primaryjoin="and_(ReadBook.user_id == foreign(KoboReadingState.user_id), "
@@ -422,49 +488,40 @@ class ReadBook(Base):
     last_time_started_reading = Column(DateTime, nullable=True)
     times_started_reading = Column(Integer, default=0, nullable=False)
 
-
 class Bookmark(Base):
     __tablename__ = 'bookmark'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     book_id = Column(Integer)
-    format = Column(String(collation='NOCASE'))
+    format = Column(String)
     bookmark_key = Column(String)
 
-
-# Baseclass representing books that are archived on the user's Kobo device.
 class ArchivedBook(Base):
     __tablename__ = 'archived_book'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     book_id = Column(Integer)
     is_archived = Column(Boolean, unique=False)
     last_modified = Column(DateTime, default=datetime.datetime.utcnow)
 
-
 class KoboSyncedBooks(Base):
     __tablename__ = 'kobo_synced_books'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     book_id = Column(Integer)
 
-# The Kobo ReadingState API keeps track of 4 timestamped entities:
-#   ReadingState, StatusInfo, Statistics, CurrentBookmark
-# Which we map to the following 4 tables:
-#   KoboReadingState, ReadBook, KoboStatistics and KoboBookmark
 class KoboReadingState(Base):
     __tablename__ = 'kobo_reading_state'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     book_id = Column(Integer)
     last_modified = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     priority_timestamp = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     current_bookmark = relationship("KoboBookmark", uselist=False, backref="kobo_reading_state", cascade="all, delete")
     statistics = relationship("KoboStatistics", uselist=False, backref="kobo_reading_state", cascade="all, delete")
-
 
 class KoboBookmark(Base):
     __tablename__ = 'kobo_bookmark'
@@ -478,7 +535,6 @@ class KoboBookmark(Base):
     progress_percent = Column(Float)
     content_source_progress_percent = Column(Float)
 
-
 class KoboStatistics(Base):
     __tablename__ = 'kobo_statistics'
 
@@ -488,33 +544,26 @@ class KoboStatistics(Base):
     remaining_time_minutes = Column(Integer)
     spent_reading_minutes = Column(Integer)
 
-
-# Updates the last_modified timestamp in the KoboReadingState table if any of its children tables are modified.
 @event.listens_for(Session, 'before_flush')
 def receive_before_flush(session, flush_context, instances):
     for change in itertools.chain(session.new, session.dirty):
         if isinstance(change, (ReadBook, KoboStatistics, KoboBookmark)):
             if change.kobo_reading_state:
                 change.kobo_reading_state.last_modified = datetime.datetime.utcnow()
-    # Maintain the last_modified bit for the Shelf table.
     for change in itertools.chain(session.new, session.deleted):
         if isinstance(change, BookShelf):
             change.ub_shelf.last_modified = datetime.datetime.utcnow()
 
-
-# Baseclass representing Downloads from calibre-web in app.db
 class Downloads(Base):
     __tablename__ = 'downloads'
 
     id = Column(Integer, primary_key=True)
     book_id = Column(Integer)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
 
     def __repr__(self):
         return '<Download %r' % self.book_id
 
-
-# Baseclass representing allowed domains for registration
 class Registration(Base):
     __tablename__ = 'registration'
 
@@ -525,13 +574,12 @@ class Registration(Base):
     def __repr__(self):
         return "<Registration('{0}')>".format(self.domain)
 
-
 class RemoteAuthToken(Base):
     __tablename__ = 'remote_auth_token'
 
     id = Column(Integer, primary_key=True)
     auth_token = Column(String, unique=True)
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
     verified = Column(Boolean, default=False)
     expiration = Column(DateTime)
     token_type = Column(Integer, default=0)
@@ -539,11 +587,10 @@ class RemoteAuthToken(Base):
     def __init__(self):
         super().__init__()
         self.auth_token = (hexlify(os.urandom(4))).decode('utf-8')
-        self.expiration = datetime.datetime.now() + datetime.timedelta(minutes=10)  # 10 min from now
+        self.expiration = datetime.datetime.now() + datetime.timedelta(minutes=10)
 
     def __repr__(self):
         return '<Token %r>' % self.id
-
 
 def filename(context):
     file_format = context.get_current_parameters()['format']
@@ -551,7 +598,6 @@ def filename(context):
         return context.get_current_parameters()['uuid'] + '.jpg'
     else:
         return context.get_current_parameters()['uuid'] + '.' + file_format
-
 
 class Thumbnail(Base):
     __tablename__ = 'thumbnail'
@@ -566,65 +612,41 @@ class Thumbnail(Base):
     generated_at = Column(DateTime, default=lambda: datetime.datetime.utcnow())
     expiration = Column(DateTime, nullable=True)
 
-
-# Add missing tables during migration of database
 def add_missing_tables(engine, _session):
-    if not engine.dialect.has_table(engine.connect(), "archived_book"):
-        ArchivedBook.__table__.create(bind=engine)
-    if not engine.dialect.has_table(engine.connect(), "thumbnail"):
-        Thumbnail.__table__.create(bind=engine)
+    # For PostgreSQL, tables should be created via migrations
+    # This function is kept for compatibility but won't create tables in PostgreSQL
+    pass
 
-
-# migrate all settings missing in registration table
 def migrate_registration_table(engine, _session):
     try:
-        # Handle table exists, but no content
         cnt = _session.query(Registration).count()
         if not cnt:
-            with engine.connect() as conn:
-                trans = conn.begin()
-                conn.execute(text("insert into registration (domain, allow) values('%.%',1)"))
-                trans.commit()
-    except exc.OperationalError:  # Database is not writeable
+            new_reg = Registration(domain='%.%', allow=1)
+            _session.add(new_reg)
+            _session.commit()
+    except exc.OperationalError:
         print('Settings database is not writeable. Exiting...')
         sys.exit(2)
 
-
 def migrate_user_session_table(engine, _session):
-    try:
-        _session.query(exists().where(User_Sessions.random)).scalar()
-        _session.commit()
-    except exc.OperationalError:  # Database is not compatible, some columns are missing
-        with engine.connect() as conn:
-            trans = conn.begin()
-            conn.execute(text("ALTER TABLE user_session ADD column 'random' String"))
-            conn.execute(text("ALTER TABLE user_session ADD column 'expiry' Integer"))
-            trans.commit()
+    # For PostgreSQL, schema changes should be handled via migrations
+    pass
 
-
-# Migrate database to current version, has to be updated after every database change. Currently migration from
-# maybe 4/5 versions back to current should work.
-# Migration is done by checking if relevant columns are existing, and then adding rows with SQL commands
 def migrate_Database(_session):
-    engine = _session.bind
-    add_missing_tables(engine, _session)
-    migrate_registration_table(engine, _session)
-    migrate_user_session_table(engine, _session)
-
+    # For PostgreSQL, migrations should be handled separately
+    # This function is simplified for PostgreSQL
+    migrate_registration_table(_session.bind, _session)
 
 def clean_database(_session):
-    # Remove expired remote login tokens
     now = datetime.datetime.now()
     try:
         _session.query(RemoteAuthToken).filter(now > RemoteAuthToken.expiration).\
             filter(RemoteAuthToken.token_type != 1).delete()
         _session.commit()
-    except exc.OperationalError:  # Database is not writeable
+    except exc.OperationalError:
         print('Settings database is not writeable. Exiting...')
         sys.exit(2)
 
-
-# Save downloaded books per user in calibre-web's own database
 def update_download(book_id, user_id):
     check = session.query(Downloads).filter(Downloads.user_id == user_id).filter(Downloads.book_id == book_id).first()
 
@@ -636,8 +658,6 @@ def update_download(book_id, user_id):
         except exc.OperationalError:
             session.rollback()
 
-
-# Delete non existing downloaded books in calibre-web's own database
 def delete_download(book_id):
     session.query(Downloads).filter(book_id == Downloads.book_id).delete()
     try:
@@ -645,7 +665,6 @@ def delete_download(book_id):
     except exc.OperationalError:
         session.rollback()
 
-# Generate user Guest (translated text), as anonymous user, no rights
 def create_anonymous_user(_session):
     user = User()
     user.name = "Guest"
@@ -659,8 +678,6 @@ def create_anonymous_user(_session):
     except Exception:
         _session.rollback()
 
-
-# Generate User admin with admin123 password, and access to everything
 def create_admin_user(_session):
     user = User()
     user.name = "admin"
@@ -678,31 +695,57 @@ def create_admin_user(_session):
 
 def init_db_thread():
     global app_DB_path
-    engine = create_engine('sqlite:///{0}'.format(app_DB_path), echo=False)
+    # PostgreSQL connection
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,  # Add connection health checks
+        pool_recycle=300    # Recycle connections after 5 minutes
+    )
+    
+    log.info(f"Initializing PostgreSQL connection: {DATABASE_URL}")
     Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
     return Session()
 
-
-def init_db(app_db_path):
-    # Open session for database connection
+def init_db(app_db_path=None):
     global session
     global app_DB_path
 
     app_DB_path = app_db_path
-    engine = create_engine('sqlite:///{0}'.format(app_db_path), echo=False)
+    
+    # PostgreSQL connection
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300
+    )
+    
+    log.info(f"Initializing main PostgreSQL connection: {DATABASE_URL}")
 
     Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
     session = Session()
 
-    if os.path.exists(app_db_path):
-        Base.metadata.create_all(engine)
-        migrate_Database(session)
-        clean_database(session)
-    else:
-        Base.metadata.create_all(engine)
+    # For PostgreSQL, we assume tables are already created via migrations
+    # Just create missing tables if they don't exist
+    Base.metadata.create_all(engine)
+    migrate_Database(session)
+    clean_database(session)
+
+    # Check if we need to create default users
+    user_count = session.query(User).count()
+    log.info(f"User count is :{user_count}")
+    if user_count == 0:
         create_admin_user(session)
         create_anonymous_user(session)
 
@@ -730,16 +773,26 @@ def password_change(user_credentials=None):
             print("Username '{}' not valid, can't change password".format(username))
             sys.exit(3)
 
-
 def get_new_session_instance():
-    new_engine = create_engine('sqlite:///{0}'.format(app_DB_path), echo=False)
+    from urllib.parse import quote
+    encodepassword = quote(DB_PASSWORD)
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+    new_engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
+    
+    log.info(f"Creating new PostgreSQL session: {DATABASE_URL}")
+
     new_session = scoped_session(sessionmaker())
     new_session.configure(bind=new_engine)
 
     atexit.register(lambda: new_session.remove() if new_session else True)
 
     return new_session
-
 
 def dispose():
     global session

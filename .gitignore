@@ -35,3 +35,17 @@ gdrive_credentials
 client_secrets.json
 gmail.json
 /.key
+ui-chacking
+.env
+gdrive/
+markdown/
+legacy/
+!metadata.db
+chacking_files/
+/forum/src/storage/cache/
+cps/static/author_images/*
+library/*
+.agent/
+chacking.txt
+fix_metadata_dirtied.py
+fix_tables.py

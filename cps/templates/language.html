@@ -1,0 +1,173 @@
+{% extends "layout.html" %}
+{% block body %}
+<h1 class="{{page}}">{{_(title)}}</h1>
+
+<div class="filterheader" style="text-align: right; margin-bottom: 20px;">
+    <div class="dropdown" style="display: inline-block;">
+        <button class="btn btn-default dropdown-toggle sort-dropdown-btn" type="button" id="sortMenu"
+            data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+            <i class="fas fa-sort-amount-down" style="color: #ff7174;"></i> {{_('Sort By')}}
+            <span class="caret" style="margin-left: 5px;"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-right sort-dropdown-menu" aria-labelledby="sortMenu">
+            <li><a href="#" class="sort-btn" data-order="asc">{{_('Name: A to Z')}}</a></li>
+            <li><a href="#" class="sort-btn" data-order="desc">{{_('Name: Z to A')}}</a></li>
+        </ul>
+    </div>
+</div>
+
+<div class="data-display-container">
+    <div class="category-grid" id="category-grid">
+        {% for entry in entries %}
+        {% set sort_name = entry[0].name %}
+        <a href="{{url_for('web.books_list', data=data, sort_param='stored', book_id=entry[0].id )}}"
+            class="category-card" data-name="{{ sort_name }}" style="background-color: #FF9AA2;">
+            <div class="category-icon language-icon" style="color: #FF9AA2;">
+                {{ sort_name[0] }}
+            </div>
+            <div class="category-info">
+                <div class="category-name">
+                    {{ sort_name }}
+                </div>
+                <div class="category-count">
+                    {{ entry[1] }} {{_('Books')}}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* Ensure grid is responsive */
+    .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 20px;
+        padding: 20px 0;
+    }
+
+    .category-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        text-align: left;
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-decoration: none;
+        color: #444;
+        height: 180px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+        color: #222;
+    }
+
+    .category-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        text-transform: uppercase;
+    }
+
+    .category-info {
+        width: 100%;
+    }
+
+    .category-name {
+        font-weight: 700;
+        font-size: 1.2em;
+        margin-bottom: 5px;
+        line-height: 1.2;
+        color: #333;
+    }
+
+    .category-count {
+        font-size: 0.9em;
+        color: #666;
+        font-weight: 500;
+    }
+
+    /* Dark mode support if applicable */
+    @media (prefers-color-scheme: dark) {
+        .category-card {
+            /* Keep pastel colors but maybe adjust text? 
+               Actually, if we force pastel backgrounds, we should keep dark text for contrast.
+               So we override the default dark mode text color for these cards. */
+            color: #333;
+        }
+
+        .category-name {
+            color: #222;
+        }
+
+        .category-count {
+            color: #555;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+    $(document).ready(function () {
+        // Sorting Logic
+        $('.sort-btn').click(function (e) {
+            e.preventDefault();
+            var order = $(this).data('order');
+            var $grid = $('#category-grid');
+            var $items = $grid.children('.category-card');
+
+            $items.sort(function (a, b) {
+                var nameA = $(a).data('name').toString().toUpperCase();
+                var nameB = $(b).data('name').toString().toUpperCase();
+                if (order === 'asc') {
+                    return (nameA < nameB) ? -1 : (nameA > nameB) ? 1 : 0;
+                } else {
+                    return (nameA > nameB) ? -1 : (nameA < nameB) ? 1 : 0;
+                }
+            });
+
+            $grid.append($items);
+        });
+
+        // Filtering Logic
+        $('.filter-btn').click(function () {
+            $('.filter-btn').removeClass('active');
+            $(this).addClass('active');
+
+            var char = $(this).data('char');
+            var $items = $('.category-card');
+
+            if (char === 'all') {
+                $items.show();
+            } else {
+                $items.each(function () {
+                    var name = $(this).data('name').toString().toUpperCase();
+                    if (name.startsWith(char)) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

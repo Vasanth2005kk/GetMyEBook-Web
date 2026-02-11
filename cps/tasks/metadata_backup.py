@@ -62,7 +62,7 @@ class TaskBackupMetadata(CalibreTask):
         try:
             metadata_backup = self.calibre_db.session.query(db.Metadata_Dirtied).all()
             custom_columns = (self.calibre_db.session.query(db.CustomColumns)
-                              .filter(db.CustomColumns.mark_for_delete == 0)
+                              .filter(db.CustomColumns.mark_for_delete == False)
                               .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions))
                               .order_by(db.CustomColumns.label).all())
             count = len(metadata_backup)

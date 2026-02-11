@@ -21,7 +21,8 @@ import sys
 import json
 
 from sqlalchemy import Column, String, Integer, SmallInteger, Boolean, BLOB, JSON
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.dialects.postgresql import BYTEA
+from sqlalchemy.exc import OperationalError , ProgrammingError , InternalError
 from sqlalchemy.sql.expression import text
 from sqlalchemy import exists
 from cryptography.fernet import Fernet
@@ -33,9 +34,14 @@ try:
 except ImportError:
     from sqlalchemy.ext.declarative import declarative_base
 
-from . import constants, logger
+from . import constants, logger , utils
 from .subproc_wrapper import process_wait
 
+from dotenv import load_dotenv
+import urllib.parse
+
+
+load_dotenv(utils.get_env_path())
 
 log = logger.create()
 _Base = declarative_base()
@@ -45,7 +51,7 @@ class _Flask_Settings(_Base):
     __tablename__ = 'flask_settings'
 
     id = Column(Integer, primary_key=True)
-    flask_session_key = Column(BLOB, default=b"")
+    flask_session_key = Column(BYTEA, default=b"")
 
     def __init__(self, key):
         super().__init__()
@@ -69,7 +75,7 @@ class _Settings(_Base):
     mail_server_type = Column(SmallInteger, default=0)
     mail_gmail_token = Column(JSON, default={})
 
-    config_calibre_dir = Column(String)
+    config_calibre_dir = Column(String,default=os.environ.get('BOOK_FILEPATH'))
     config_calibre_uuid = Column(String)
     config_calibre_split = Column(Boolean, default=False)
     config_calibre_split_dir = Column(String)
@@ -93,14 +99,14 @@ class _Settings(_Base):
     config_access_log = Column(SmallInteger, default=0)
     config_access_logfile = Column(String, default=logger.DEFAULT_ACCESS_LOG)
 
-    config_uploading = Column(SmallInteger, default=0)
-    config_anonbrowse = Column(SmallInteger, default=0)
-    config_public_reg = Column(SmallInteger, default=0)
+    config_uploading = Column(SmallInteger, default=1)
+    config_anonbrowse = Column(SmallInteger, default=1)
+    config_public_reg = Column(SmallInteger, default=1)
     config_remote_login = Column(Boolean, default=False)
     config_kobo_sync = Column(Boolean, default=False)
 
     config_default_role = Column(SmallInteger, default=0)
-    config_default_show = Column(SmallInteger, default=constants.ADMIN_USER_SIDEBAR)
+    config_default_show = Column(Integer, default=constants.ADMIN_USER_SIDEBAR)
     config_default_language = Column(String(3), default="all")
     config_default_locale = Column(String(2), default="en")
     config_columns_to_ignore = Column(String)
@@ -117,8 +123,8 @@ class _Settings(_Base):
 
     config_use_goodreads = Column(Boolean, default=False)
     config_goodreads_api_key = Column(String)
-    config_register_email = Column(Boolean, default=False)
-    config_login_type = Column(Integer, default=0)
+    config_register_email = Column(Boolean, default=True)
+    config_login_type = Column(Integer, default=2)
 
     config_kobo_proxy = Column(Boolean, default=False)
 
@@ -174,6 +180,20 @@ class _Settings(_Base):
     config_limiter_options = Column(String, default="")
     config_check_extensions = Column(Boolean, default=True)
 
+    # PostgreSQL Configuration Fields - ADD THESE
+    config_db_host = Column(String, default='localhost')
+    config_db_port = Column(String, default='5432')
+    config_db_name = Column(String, default='getmyebook_app')
+    config_db_user = Column(String, default='vasanth')
+    config_db_password_e = Column(String)
+    config_db_password = Column(String)
+    config_database_url = Column(String)
+    config_use_postgresql = Column(Boolean, default=False)
+    
+    # PostgreSQL Metadata Configuration
+    config_use_postgresql_metadata = Column(Boolean, default=False)
+    config_postgresql_metadata_url = Column(String)
+
     def __repr__(self):
         return self.__class__.__name__
 
@@ -182,26 +202,6 @@ class _Settings(_Base):
 class ConfigSQL(object):
     # pylint: disable=no-member
     def __init__(self):
-        '''self.config_calibre_uuid = None
-        self.config_calibre_split_dir = None
-        self.dirty = None
-        self.config_logfile = None
-        self.config_upload_formats = None
-        self.mail_gmail_token = None
-        self.mail_server_type = None
-        self.mail_server = None
-        self.config_log_level = None
-        self.config_allowed_column_value = None
-        self.config_denied_column_value = None
-        self.config_allowed_tags = None
-        self.config_denied_tags = None
-        self.config_default_show = None
-        self.config_default_role = None
-        self.config_keyfile = None
-        self.config_certfile = None
-        self.config_rarfile_location = None
-        self.config_kepubifypath = None
-        self.config_binariesdir = None'''
         self.__dict__["dirty"] = list()
 
     def init_config(self, session, secret_key, cli):
@@ -227,6 +227,18 @@ class ConfigSQL(object):
         if self.config_rarfile_location is None:
             change = True
             self.config_rarfile_location = autodetect_unrar_binary()
+        
+        # Initialize PostgreSQL settings from environment variables if not set
+        if not self.config_use_postgresql and self._has_postgresql_env_vars():
+            change = True
+            self.config_use_postgresql = True
+            self.config_db_host = os.environ.get('DB_HOST')
+            self.config_db_port = os.environ.get('DB_PORT')
+            self.config_db_name = os.environ.get('DATABASENAME_APP')
+            self.config_db_user = os.environ.get('DB_USERNAME')
+            self.config_db_password = os.environ.get('DB_PASSWORD')
+            self.config_database_url = os.environ.get('DATABASE_URL')
+
         if change:
             self.save()
 
@@ -235,6 +247,22 @@ class ConfigSQL(object):
             log.debug("_ConfigSQL._read_from_storage")
             self._settings = self._session.query(_Settings).first()
         return self._settings
+    
+    def _has_postgresql_env_vars(self):
+        """Check if PostgreSQL environment variables are set"""
+        return bool(os.environ.get('DATABASE_URL') or 
+                   (os.environ.get('DB_HOST') and os.environ.get('DATABASENAME_APP')))
+
+    def get_postgresql_url(self):
+        """Get PostgreSQL connection URL"""
+        if self.config_database_url:
+            return self.config_database_url
+        elif self.config_db_host and self.config_db_name:
+            password = self.config_db_password or ''
+            if password:
+                password = urllib.parse.quote_plus(password)
+            return f"postgresql+psycopg2://{self.config_db_user}:{password}@{self.config_db_host}:{self.config_db_port}/{self.config_db_name}"
+        return None
 
     def get_config_certfile(self):
         if self.cli.certfilepath:
@@ -395,11 +423,20 @@ class ConfigSQL(object):
     def save(self):
         """Apply all configuration values to the underlying storage."""
         s = self._read_from_storage()  # type: _Settings
+        
+        # Ensure the object is attached to the session to avoid DetachedInstanceError
+        if s not in self._session:
+            s = self._session.merge(s)
+        
+        # Refresh the object to ensure it's up-to-date and bound to the session
+        self._session.refresh(s)
 
         for k in self.dirty:
             if k[0] == '_':
                 continue
-            if hasattr(s, k):
+            # Use the class definition to check for attribute existence
+            # instead of hasattr() which triggers lazy loading
+            if k in _Settings.__dict__ or hasattr(_Settings, k):
                 if k.endswith("_e"):
                     setattr(s, k, self._fernet.encrypt(self.__dict__[k].encode()))
                 else:
@@ -422,6 +459,9 @@ class ConfigSQL(object):
         self.save()
 
     def get_book_path(self):
+        book_path_floder = os.environ.get('BOOK_FILEPATH')
+        if book_path_floder and os.path.exists(book_path_floder):
+            return book_path_floder
         return self.config_calibre_split_dir if self.config_calibre_split_dir else self.config_calibre_dir
 
     def store_calibre_uuid(self, calibre_db, Library_table):
@@ -440,22 +480,71 @@ class ConfigSQL(object):
 
 def _encrypt_fields(session, secret_key):
     try:
-        session.query(exists().where(_Settings.mail_password_e)).scalar()
+        session.query(exists().where(_Settings.mail_password_e.isnot(None))).scalar()
+        # session.query(exists().where(_Settings.mail_password_e)).scalar()
     except OperationalError:
         with session.bind.connect() as conn:
             conn.execute(text("ALTER TABLE settings ADD column 'mail_password_e' String"))
             conn.execute(text("ALTER TABLE settings ADD column 'config_ldap_serv_password_e' String"))
+            conn.execute(text("ALTER TABLE settings ADD column 'config_db_password_e' String"))
         session.commit()
         crypter = Fernet(secret_key)
-        settings = session.query(_Settings.mail_password, _Settings.config_ldap_serv_password).first()
+        settings = session.query(_Settings.mail_password, _Settings.config_ldap_serv_password, _Settings.config_db_password).first()
         if settings.mail_password:
             session.query(_Settings).update(
                 {_Settings.mail_password_e: crypter.encrypt(settings.mail_password.encode())})
         if settings.config_ldap_serv_password:
             session.query(_Settings).update(
                 {_Settings.config_ldap_serv_password_e: crypter.encrypt(settings.config_ldap_serv_password.encode())})
+        if settings.config_db_password:
+            session.query(_Settings).update(
+                {_Settings.config_db_password_e: crypter.encrypt(settings.config_db_password.encode())})
         session.commit()
 
+# def _migrate_table(session, orm_class, secret_key=None):
+#     if secret_key:
+#         _encrypt_fields(session, secret_key)
+#     changed = False
+
+#     for column_name, column in orm_class.__dict__.items():
+#         if column_name[0] != '_':
+#             # Skip checking PostgreSQL columns if they don't exist yet to avoid errors
+#             if column_name in ['config_db_host', 'config_db_port', 'config_db_name', 'config_db_user', 
+#                              'config_db_password_e', 'config_db_password', 'config_database_url', 
+#                              'config_use_postgresql']:
+#                 continue
+                
+#             try:
+#                 session.query(column).first()
+#             except OperationalError as err:
+#                 log.debug("%s: %s", column_name, err.args[0])
+#                 if column.default is None:
+#                     column_default = ""
+#                 else:
+#                     if isinstance(column.default.arg, bool):
+#                         column_default = "DEFAULT {}".format(int(column.default.arg))
+#                     else:
+#                         column_default = "DEFAULT `{}`".format(column.default.arg)
+#                 if isinstance(column.type, JSON):
+#                     column_type = "JSON"
+#                 else:
+#                     column_type = column.type
+#                 alter_table = text("ALTER TABLE %s ADD COLUMN `%s` %s %s" % (orm_class.__tablename__,
+#                                                                              column_name,
+#                                                                              column_type,
+#                                                                              column_default))
+#                 log.debug(alter_table)
+#                 session.execute(alter_table)
+#                 changed = True
+#             except json.decoder.JSONDecodeError as e:
+#                 log.error("Database corrupt column: {}".format(column_name))
+#                 log.debug(e)
+
+#     if changed:
+#         try:
+#             session.commit()
+#         except OperationalError:
+#             session.rollback()
 
 def _migrate_table(session, orm_class, secret_key=None):
     if secret_key:
@@ -463,39 +552,173 @@ def _migrate_table(session, orm_class, secret_key=None):
     changed = False
 
     for column_name, column in orm_class.__dict__.items():
-        if column_name[0] != '_':
+        if column_name[0] != '_' and hasattr(column, 'type'):
+            # Skip checking PostgreSQL columns if they don't exist yet to avoid errors
+            skip_columns = ['config_db_host', 'config_db_port', 'config_db_name', 'config_db_user', 
+                           'config_db_password_e', 'config_db_password', 'config_database_url', 
+                           'config_use_postgresql', 'config_use_postgresql_metadata', 'config_postgresql_metadata_url']
+            
+            if column_name in skip_columns:
+                continue
+                
             try:
+                # Try to query the column to see if it exists
                 session.query(column).first()
-            except OperationalError as err:
-                log.debug("%s: %s", column_name, err.args[0])
+            except (OperationalError,InternalError) as err:
+                log.debug("OperationalError for column %s: %s", column_name, err.args[0])
+                # This means the column doesn't exist, so we need to add it
                 if column.default is None:
                     column_default = ""
                 else:
                     if isinstance(column.default.arg, bool):
                         column_default = "DEFAULT {}".format(int(column.default.arg))
                     else:
-                        column_default = "DEFAULT `{}`".format(column.default.arg)
+                        column_default = "DEFAULT '{}'".format(column.default.arg) if column.default.arg is not None else ""
+                
+                # Determine column type
                 if isinstance(column.type, JSON):
                     column_type = "JSON"
+                elif isinstance(column.type, Boolean):
+                    column_type = "BOOLEAN"
+                elif isinstance(column.type, String):
+                    column_type = "VARCHAR"
+                elif isinstance(column.type, Integer):
+                    column_type = "INTEGER"
+                elif isinstance(column.type, SmallInteger):
+                    column_type = "SMALLINT"
+                elif isinstance(column.type, BLOB):
+                    column_type = "BYTEA"
                 else:
-                    column_type = column.type
-                alter_table = text("ALTER TABLE %s ADD COLUMN `%s` %s %s" % (orm_class.__tablename__,
-                                                                             column_name,
-                                                                             column_type,
-                                                                             column_default))
-                log.debug(alter_table)
-                session.execute(alter_table)
+                    column_type = str(column.type)
+                
+                # Try different SQL syntax for different databases
+                try:
+                    # Try SQLite syntax first
+                    alter_table = text("ALTER TABLE {} ADD COLUMN `{}` {} {}".format(
+                        orm_class.__tablename__,
+                        column_name,
+                        column_type,
+                        column_default
+                    ))
+                    session.execute(alter_table)
+                    log.info("Added column %s to table %s using SQLite syntax", column_name, orm_class.__tablename__)
+                except Exception as sqlite_error:
+                    log.debug("SQLite syntax failed, trying PostgreSQL syntax: %s", sqlite_error)
+                    try:
+                        # Try PostgreSQL syntax
+                        alter_table = text('ALTER TABLE "{}" ADD COLUMN "{}" {} {}'.format(
+                            orm_class.__tablename__,
+                            column_name,
+                            column_type,
+                            column_default
+                        ))
+                        session.execute(alter_table)
+                        log.info("Added column %s to table %s using PostgreSQL syntax", column_name, orm_class.__tablename__)
+                    except Exception as postgres_error:
+                        log.error("Failed to add column %s: %s", column_name, postgres_error)
+                        continue
+                
                 changed = True
+            except ProgrammingError as pe:
+                # Handle PostgreSQL programming errors (like undefined column)
+                log.debug("ProgrammingError for column %s: %s", column_name, pe)
+                if 'UndefinedColumn' in str(pe) or 'column' in str(pe).lower() and 'does not exist' in str(pe).lower():
+                    if column.default is None:
+                        column_default = ""
+                    else:
+                        if isinstance(column.default.arg, bool):
+                            column_default = "DEFAULT {}".format(int(column.default.arg))
+                        else:
+                            column_default = "DEFAULT '{}'".format(column.default.arg) if column.default.arg is not None else ""
+                    
+                    # Determine column type for PostgreSQL
+                    if isinstance(column.type, JSON):
+                        column_type = "JSON"
+                    elif isinstance(column.type, Boolean):
+                        column_type = "BOOLEAN"
+                    elif isinstance(column.type, String):
+                        column_type = "VARCHAR"
+                    elif isinstance(column.type, Integer):
+                        column_type = "INTEGER"
+                    elif isinstance(column.type, SmallInteger):
+                        column_type = "SMALLINT"
+                    elif isinstance(column.type, BLOB):
+                        column_type = "BYTEA"
+                    else:
+                        column_type = str(column.type)
+                    
+                    try:
+                        # Use PostgreSQL syntax
+                        alter_table = text('ALTER TABLE "{}" ADD COLUMN "{}" {} {}'.format(
+                            orm_class.__tablename__,
+                            column_name,
+                            column_type,
+                            column_default
+                        ))
+                        session.execute(alter_table)
+                        log.info("Added column %s to table %s using PostgreSQL syntax (ProgrammingError)", column_name, orm_class.__tablename__)
+                        changed = True
+                    except Exception as e:
+                        log.error("Failed to add column %s via ProgrammingError handler: %s", column_name, e)
+                else:
+                    # Re-raise if it's a different kind of error
+                    raise
             except json.decoder.JSONDecodeError as e:
                 log.error("Database corrupt column: {}".format(column_name))
                 log.debug(e)
 
+    # Now handle the PostgreSQL columns that we skipped earlier
+    postgres_columns = [
+        ('config_use_postgresql_metadata', Boolean, False),
+        ('config_postgresql_metadata_url', String, None)
+    ]
+    
+    for column_name, column_type, default_value in postgres_columns:
+        try:
+            # Check if column exists by trying to query it
+            if hasattr(orm_class, column_name):
+                col = getattr(orm_class, column_name)
+                session.query(col).first()
+        except (OperationalError, ProgrammingError , InternalError) as e:
+            log.info("Adding PostgreSQL metadata column %s to table %s", column_name, orm_class.__tablename__)
+            
+            if default_value is None:
+                column_default = ""
+            else:
+                if isinstance(default_value, bool):
+                    column_default = "DEFAULT {}".format(int(default_value))
+                else:
+                    column_default = "DEFAULT '{}'".format(default_value) if default_value is not None else ""
+            
+            # Determine column type
+            if column_type == Boolean:
+                col_type = "BOOLEAN"
+            elif column_type == String:
+                col_type = "VARCHAR"
+            else:
+                col_type = str(column_type)
+            
+            try:
+                # Try PostgreSQL syntax for these specific columns
+                alter_table = text('ALTER TABLE "{}" ADD COLUMN "{}" {} {}'.format(
+                    orm_class.__tablename__,
+                    column_name,
+                    col_type,
+                    column_default
+                ))
+                session.execute(alter_table)
+                log.info("Added PostgreSQL column %s to table %s", column_name, orm_class.__tablename__)
+                changed = True
+            except Exception as add_error:
+                log.error("Failed to add PostgreSQL column %s: %s", column_name, add_error)
+
     if changed:
         try:
             session.commit()
-        except OperationalError:
+            log.info("Database schema migration completed successfully")
+        except OperationalError as e:
+            log.error("Failed to commit database changes: %s", e)
             session.rollback()
-
 
 def autodetect_calibre_binaries():
     if sys.platform == "win32":

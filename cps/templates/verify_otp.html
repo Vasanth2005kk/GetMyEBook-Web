@@ -1,39 +1,347 @@
 {% extends "layout.html" %}
 {% block body %}
-<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#f5f5f5;font-family:Inter,system-ui,Arial;">
-  <div style="background:#fff;padding:32px;border-radius:8px;width:360px;box-shadow:0 4px 12px rgba(0,0,0,0.15);text-align:center;">
-    <div style="font-weight:700;margin-bottom:12px;font-size:20px;color:#4f46e5;">✨ GetMyEbook</div>
-    <h1 style="margin-bottom:10px;font-size:22px;color:#111827;">Verify OTP</h1>
-    <p style="margin:0 0 20px 0;color:#6b7280;font-size:14px;">
-      An OTP has been sent to <strong>{{ email }}</strong>. Please enter it below:
-    </p>
+<link rel="stylesheet" href="{{ url_for('static', filename='newStyles/css/otp_verify.css') }}">
+<!-- Screen Reader Announcements -->
+<div class="sr-only" role="status" aria-live="polite" id="sr-announcements"></div>
+<div class="container">
+  <div class="card">
+    <div class="card-body">
+      <!-- Header Section -->
+      <div class="text-center" id="headerSection">
+        <h2 class="gradient-text">Verify Your Account</h2>
+        <p class="text-muted">
+          We've sent a 6-digit verification code to
+        </p>
+        <div style="color: #0746b3;font-size: large;font-weight: 600;"
+          class="d-inline-flex align-items-center gap-2 fw-semibold">
+          <i class="fa-regular fa-envelope"></i>
+          <span>{{ email }}</span>
+        </div>
+        <p class="text-muted" style="margin-bottom: 1rem;">Please enter the code below to continue
 
-    <form method="POST" action="{{ url_for('web.verify_otp',email=email) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="otp-inputs" style="display:flex;justify-content:space-between;margin:20px 0;">
-        {% for i in range(1,7) %}
-          <input type="text" name="otp{{i}}" maxlength="1" pattern="\d" required 
-                 style="width:40px;height:48px;border-radius:6px;border:1px solid #d1d5db;background:#f9fafb;color:#111827;font-size:20px;text-align:center;outline:none;">
-        {% endfor %}
+        </p>
+        <!-- <span>Please enter the code below to continue</span> -->
       </div>
-      <button type="submit" style="width:100%;padding:12px 14px;border-radius:6px;border:none;background:#4f46e5;color:white;font-weight:600;cursor:pointer;font-size:14px;transition:transform 0.15s ease;">Verify</button>
-    </form>
 
-    <div style="font-size:12px;color:#6b7280;margin-top:12px;">
-      Didn’t get the email? <a href="#" style="color:#4f46e5;text-decoration:none;">Resend OTP</a>
+      <!-- OTP Input Section -->
+      <div id="otpSection">
+        <form method="POST" action="{{ url_for('web.verify_otp',email=email) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="otp-container" role="group" aria-label="One-time password input">
+            {% for i in range(1,7) %}
+            <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off"
+              id="otp1" name="otp{{i}}" aria-label="Digit 1 of 6">
+            {% endfor %}
+          </div>
+      </div>
+
+      <!-- Timer -->
+      <div class="timer-section" id="timerSection">
+        <p class="timer-text mb-0">
+          Code expires in
+          <span class="timer-display">
+            <i class="far fa-clock"></i>&nbsp;
+            <span id="timer" aria-live="polite" aria-atomic="true">05:00</span>
+          </span>
+        </p>
+      </div>
+
+      <!-- Verify Button -->
+      <div id="verifyBtnSection">
+        <button class="btn-gradient" id="verifyBtn" disabled aria-label="Verify OTP code">
+          <span id="btnText">Verify OTP</span>
+          <i class="bi bi-arrow-right-circle-fill ms-2"></i></span>
+        </button>
+      </div>
+      </form>
+      <!-- Action Links -->
+      <div class="action-links" id="actionLinks">
+        <button class="btn-link" id="resendLink" aria-label="Resend verification code">
+          <span class="refresh-icon" aria-hidden="true"></span>
+          Resend OTP
+        </button>
+      </div>
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-  const inputs = document.querySelectorAll('.otp-inputs input');
-  inputs.forEach((input, i) => {
-    input.addEventListener('input', () => {
-      if (input.value && i < inputs.length - 1) inputs[i + 1].focus();
+  // ============================================
+  // RESPONSIVE OTP VERIFICATION SYSTEM
+  // ============================================
+
+  // Get all elements
+  const otpInputs = document.querySelectorAll('.otp-input');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const btnText = document.getElementById('btnText');
+  const successAlert = document.getElementById('successAlert');
+  const resendLink = document.getElementById('resendLink');
+  const timerElement = document.getElementById('timer');
+  const headerSection = document.getElementById('headerSection');
+  const otpSection = document.getElementById('otpSection');
+  const timerSection = document.getElementById('timerSection');
+  const verifyBtnSection = document.getElementById('verifyBtnSection');
+  const actionLinks = document.getElementById('actionLinks');
+  const srAnnouncements = document.getElementById('sr-announcements');
+
+  let timeLeft = 300; // 2 minutes
+  let timerInterval;
+
+  // Accessibility: Announce to screen readers
+  function announceToScreenReader(message) {
+    if (srAnnouncements) {
+      srAnnouncements.textContent = message;
+      setTimeout(() => {
+        srAnnouncements.textContent = '';
+      }, 1000);
+    }
+  }
+
+  // Start countdown timer
+  function startTimer() {
+    clearInterval(timerInterval);
+    timeLeft = 300;
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      const timeString = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      timerElement.textContent = timeString;
+
+      // Announce time warnings to screen readers
+      if (timeLeft === 60) {
+        announceToScreenReader('One minute remaining');
+      } else if (timeLeft === 30) {
+        announceToScreenReader('30 seconds remaining');
+      }
+
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        timerElement.textContent = 'Expired';
+        timerElement.classList.add('text-danger');
+        otpInputs.forEach(input => {
+          input.disabled = true;
+          input.setAttribute('aria-disabled', 'true');
+        });
+        announceToScreenReader('Code has expired. Please request a new code.');
+      }
+    }, 1000);
+  }
+
+  // Initialize timer
+  startTimer();
+
+  // Auto-focus first input on load
+  window.addEventListener('load', () => {
+    otpInputs[0].focus();
+  });
+
+  // Handle viewport resize for responsive adjustments
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      // Recalculate any dynamic values if needed
+      // This ensures smooth transitions during rotation or resize
+    }, 250);
+  });
+
+  // Handle OTP input functionality
+  otpInputs.forEach((input, index) => {
+    // Handle input
+    input.addEventListener('input', (e) => {
+      const value = e.target.value;
+
+      // Only allow numbers
+      if (!/^\d*$/.test(value)) {
+        e.target.value = '';
+        return;
+      }
+
+      // Auto-focus next input
+      if (value && index < otpInputs.length - 1) {
+        otpInputs[index + 1].focus();
+      }
+
+      // Remove error state
+      input.classList.remove('error');
+      input.removeAttribute('aria-invalid');
+
+      // Check if all inputs filled
+      checkAllInputsFilled();
     });
-    input.addEventListener('keydown', e => {
-      if (e.key === "Backspace" && !input.value && i > 0) inputs[i - 1].focus();
+
+    // Handle backspace navigation
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && index > 0) {
+        otpInputs[index - 1].focus();
+        otpInputs[index - 1].value = '';
+        checkAllInputsFilled();
+      }
+
+      // Handle arrow key navigation
+      if (e.key === 'ArrowLeft' && index > 0) {
+        e.preventDefault();
+        otpInputs[index - 1].focus();
+      }
+      if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+        e.preventDefault();
+        otpInputs[index + 1].focus();
+      }
+    });
+
+    // Handle paste - distribute across all boxes
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+
+      if (pastedData) {
+        // Distribute digits across inputs
+        pastedData.split('').forEach((char, i) => {
+          if (otpInputs[i]) {
+            otpInputs[i].value = char;
+          }
+        });
+
+        // Focus next empty or last input
+        const nextIndex = pastedData.length < 6 ? pastedData.length : 5;
+        otpInputs[nextIndex].focus();
+
+        checkAllInputsFilled();
+        announceToScreenReader('Code pasted successfully');
+      }
+    });
+
+    // Select on focus
+    input.addEventListener('focus', (e) => {
+      e.target.select();
     });
   });
+
+  // Check if all inputs are filled
+  function checkAllInputsFilled() {
+    const allFilled = Array.from(otpInputs).every(input => input.value !== '');
+    verifyBtn.disabled = !allFilled;
+
+    if (allFilled) {
+      verifyBtn.removeAttribute('aria-disabled');
+      announceToScreenReader('All digits entered. You can now verify.');
+    } else {
+      verifyBtn.setAttribute('aria-disabled', 'true');
+    }
+  }
+
+  // Verify OTP
+  verifyBtn.addEventListener('click', () => {
+    const otp = Array.from(otpInputs).map(input => input.value).join('');
+
+    if (otp.length === 6) {
+      // Show loading state
+      btnText.innerHTML = '<span class="spinner-custom"></span> Verifying...';
+      verifyBtn.disabled = true;
+      verifyBtn.setAttribute('aria-busy', 'true');
+      announceToScreenReader('Verifying code, please wait');
+
+      // Simulate API call
+      setTimeout(() => {
+        btnText.textContent = 'Verify OTP';
+        verifyBtn.setAttribute('aria-busy', 'false');
+
+        // Show success alert
+        successAlert.classList.remove('d-none');
+
+        // Hide other sections
+        headerSection.classList.add('d-none');
+        otpSection.classList.add('d-none');
+        timerSection.classList.add('d-none');
+        verifyBtnSection.classList.add('d-none');
+        actionLinks.classList.add('d-none');
+
+        // Stop timer
+        clearInterval(timerInterval);
+
+        // Announce success
+        announceToScreenReader('Verification successful! Redirecting to dashboard.');
+
+      }, 1500);
+    } else {
+      // Show error state
+      otpInputs.forEach(input => {
+        if (!input.value) {
+          input.classList.add('error');
+          input.setAttribute('aria-invalid', 'true');
+        }
+      });
+      announceToScreenReader('Please fill in all digits');
+    }
+  });
+
+  // Resend OTP
+  resendLink.addEventListener('click', (e) => {
+    e.preventDefault();
+
+    // Clear all inputs
+    otpInputs.forEach(input => {
+      input.value = '';
+      input.disabled = false;
+      input.removeAttribute('aria-disabled');
+      input.classList.remove('error');
+      input.removeAttribute('aria-invalid');
+    });
+
+    // Restart timer
+    startTimer();
+    timerElement.classList.remove('text-danger');
+
+    // Focus first input
+    otpInputs[0].focus();
+
+    // Show toast notification
+    showToast();
+
+    // Announce to screen reader
+    announceToScreenReader('New verification code sent successfully');
+  });
+
+  // Handle Enter key
+  document.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !verifyBtn.disabled) {
+      verifyBtn.click();
+    }
+  });
+
+  // Detect if user is on a touch device
+  function isTouchDevice() {
+    return (('ontouchstart' in window) ||
+      (navigator.maxTouchPoints > 0) ||
+      (navigator.msMaxTouchPoints > 0));
+  }
+
+  // Adjust for touch devices
+  if (isTouchDevice()) {
+    document.body.classList.add('touch-device');
+  }
+
+  // Handle orientation change
+  window.addEventListener('orientationchange', () => {
+    // Wait for orientation change to complete
+    setTimeout(() => {
+      // Scroll to top to ensure form is visible
+      window.scrollTo(0, 0);
+    }, 100);
+  });
+
+  // Prevent zoom on double tap for better mobile UX
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, false);
 </script>
 {% endblock %}

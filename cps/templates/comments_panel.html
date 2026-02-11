@@ -1,0 +1,277 @@
+{% extends "layout.html" %}
+
+{% block header %}
+<link href="{{ url_for('static', filename='css/libs/bootstrap-table.min.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/libs/bootstrap-editable.css') }}" rel="stylesheet">
+<style>
+    .filter-container {
+        margin-bottom: 20px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+        margin-top: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-header {
+        margin-bottom: 15px;
+        color: #495057;
+        font-weight: 500;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 10px;
+    }
+
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #495057;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding-bottom: 1px;
+        /* Align with input bottom border */
+    }
+
+    /* Ensure inputs have consistent height */
+    .filter-group .form-control {
+        height: 34px;
+    }
+
+    .action-btn {
+        margin: 0 4px;
+    }
+
+    /* Ensure table fits within container */
+    #comments-table {
+        background: white;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="col-sm-12">
+    <h2 class="{{page}}">{{_(title)}}</h2>
+
+    <!-- Custom Filters -->
+    <div class="filter-container">
+        <h4 class="filter-header">{{_('Filter Comments')}}</h4>
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="filter-label" for="filterDate">{{_('Date')}}</label>
+                <input type="date" class="form-control" id="filterDate" placeholder="{{_('Select Date')}}">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="filterBook">{{_('Book Name')}}</label>
+                <input type="text" class="form-control" id="filterBook" placeholder="{{_('Search Book Name')}}">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="filterUser">{{_('Username')}}</label>
+                <input type="text" class="form-control" id="filterUser" placeholder="{{_('Search Username')}}">
+            </div>
+
+            <div class="filter-actions">
+                <button id="applyFilters" class="btn btn-primary">
+                    <span class="glyphicon glyphicon-filter"></span> {{_('Apply')}}
+                </button>
+                <button id="clearFilters" class="btn btn-default">
+                    <span class="glyphicon glyphicon-refresh"></span> {{_('Clear')}}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments Table -->
+    <table id="comments-table" class="table table-no-bordered table-striped">
+        <thead>
+            <tr>
+                <th data-field="sno" data-sortable="true">S.No</th>
+                <th data-field="id" data-visible="false">ID</th>
+                <th data-field="date" data-sortable="true">Date</th>
+                <th data-field="time" data-sortable="true">Time</th>
+                <th data-field="username" data-sortable="true">Username</th>
+                <th data-field="book_name" data-sortable="true">Book Name</th>
+                <th data-field="comment" data-sortable="false" data-editable="true" data-editable-type="textarea"
+                    data-editable-url="{{ url_for('admin.edit_comment_admin') }}"
+                    data-editable-title="{{_('Edit Comment')}}">Comment</th>
+                <th data-field="actions" data-formatter="actionFormatter">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Sample Data mimicking JSON response -->
+            {% for data in panel_datas %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ data }}</td>
+                <td>{{ panel_datas[data].date }}</td>
+                <td>{{ panel_datas[data].time }}</td>
+                <td>{{ panel_datas[data].username }}</td>
+                <td>{{ panel_datas[data].book_name }}</td>
+                <td>{{ panel_datas[data].comment }}</td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-table.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-table-locale-all.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-table-editable.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/libs/bootstrap-table/bootstrap-editable.min.js') }}"></script>
+<script>
+    function actionFormatter(value, row, index) {
+        return [
+            '<button class="btn btn-primary btn-xs action-btn edit-btn" title="Edit">',
+            '<span class="glyphicon glyphicon-edit"></span>',
+            '</button>',
+            '<button class="btn btn-danger btn-xs action-btn delete-btn" title="Delete">',
+            '<span class="glyphicon glyphicon-trash"></span>',
+            '</button>'
+        ].join('');
+    }
+
+    $(function () {
+        // Initialize Table
+        var $table = $('#comments-table');
+        $table.bootstrapTable({
+            locale: "en-US",
+            idField: 'id',
+            uniqueId: 'id',
+            search: false, // We use custom filters
+            pagination: true,
+            pageSize: 10,
+            pageList: [10, 25, 50],
+            showRefresh: false,
+            showColumns: true,
+            minimumCountColumns: 2,
+            striped: true,
+            iconsPrefix: 'glyphicon',
+            icons: {
+                paginationSwitchDown: 'glyphicon-collapse-down icon-chevron-down',
+                paginationSwitchUp: 'glyphicon-collapse-up icon-chevron-up',
+                refresh: 'glyphicon-refresh icon-refresh',
+                toggle: 'glyphicon-list-alt icon-list-alt',
+                columns: 'glyphicon-th icon-th',
+                detailOpen: 'glyphicon-plus icon-plus',
+                detailClose: 'glyphicon-minus icon-minus'
+            }
+        });
+
+        // Filter Logic
+        $('#applyFilters').click(function () {
+            var dateInput = $('#filterDate').val(); // YYYY-MM-DD
+            var dateVal = "";
+            if (dateInput) {
+                // Convert YYYY-MM-DD to DD-MM-YYYY
+                var parts = dateInput.split('-');
+                if (parts.length === 3) {
+                    dateVal = parts[2] + '-' + parts[1] + '-' + parts[0];
+                }
+            }
+
+            var bookVal = $('#filterBook').val().toLowerCase().trim();
+            var userVal = $('#filterUser').val().toLowerCase().trim();
+
+            $table.bootstrapTable('filterBy', {}, {
+                'filterAlgorithm': function (row, filters) {
+                    var matchDate = true;
+                    var matchBook = true;
+                    var matchUser = true;
+
+                    if (dateVal) {
+                        // Exact match for the formatted date
+                        matchDate = (row.date === dateVal);
+                    }
+                    if (bookVal) {
+                        matchBook = (row.book_name && row.book_name.toLowerCase().indexOf(bookVal) !== -1);
+                    }
+                    if (userVal) {
+                        matchUser = (row.username && row.username.toLowerCase().indexOf(userVal) !== -1);
+                    }
+
+                    return matchDate && matchBook && matchUser;
+                }
+            });
+        });
+
+        $('#clearFilters').click(function () {
+            $('#filterDate').val('');
+            $('#filterBook').val('');
+            $('#filterUser').val('');
+            $table.bootstrapTable('filterBy', {});
+        });
+
+        // Event delegation for edit buttons
+        $('#comments-table').on('click', '.edit-btn', function (e) {
+            e.stopPropagation();
+            var $tr = $(this).closest('tr');
+            // Find the editable element within this row (usually an anchor tag)
+            var $editable = $tr.find('a[data-name="comment"]');
+            if ($editable.length) {
+                // Open the popover
+                $editable.editable('toggle');
+            }
+        });
+
+        // Event delegation for delete buttons
+        $('#comments-table').on('click', '.delete-btn', function () {
+            // Get row data
+            var $tr = $(this).closest('tr');
+            var index = $tr.data('index');
+            var row = $table.bootstrapTable('getData')[index];
+            var commentId = row.id;
+
+            if (confirm('{{_("Are you sure you want to delete this comment?")}}')) {
+                $.ajax({
+                    url: "{{ url_for('admin.delete_comment_admin') }}",
+                    type: "POST",
+                    data: { comment_id: commentId },
+                    success: function (response) {
+                        var res = response;
+                        if (typeof response === 'string') {
+                            try {
+                                res = JSON.parse(response);
+                            } catch (e) { }
+                        }
+
+                        if (res.success) {
+                            $table.bootstrapTable('remove', {
+                                field: 'id',
+                                values: [commentId]
+                            });
+                        } else {
+                            alert('Error: ' + (res.message || 'Unknown error'));
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Error deleting comment');
+                    }
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

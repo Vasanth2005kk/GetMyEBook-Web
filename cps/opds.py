@@ -134,18 +134,18 @@ def feed_hot():
     if not auth.current_user().check_visibility(constants.SIDEBAR_HOT):
         abort(404)
     off = request.args.get("offset") or 0
-    all_books = ub.session.query(ub.Downloads, func.count(ub.Downloads.book_id)).order_by(
+    all_books = ub.session.query(ub.Downloads.book_id, func.count(ub.Downloads.book_id).label('count')).order_by(
         func.count(ub.Downloads.book_id).desc()).group_by(ub.Downloads.book_id)
     hot_books = all_books.offset(off).limit(config.config_books_per_page)
     entries = list()
     for book in hot_books:
         query = calibre_db.generate_linked_query(config.config_read_column, db.Books)
         download_book = query.filter(calibre_db.common_filters()).filter(
-            book.Downloads.book_id == db.Books.id).first()
+            book.book_id == db.Books.id).first()
         if download_book:
             entries.append(download_book)
         else:
-            ub.delete_download(book.Downloads.book_id)
+            ub.delete_download(book.book_id)
     num_books = entries.__len__()
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1),
                             config.config_books_per_page, num_books)
@@ -169,7 +169,7 @@ def feed_letter_author(book_id):
     letter = true() if book_id == "00" else func.upper(db.Authors.sort).startswith(book_id)
     entries = calibre_db.session.query(db.Authors).join(db.books_authors_link).join(db.Books)\
         .filter(calibre_db.common_filters()).filter(letter)\
-        .group_by(text('books_authors_link.author'))\
+        .group_by(db.Authors.id)\
         .order_by(db.Authors.sort)
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1), config.config_books_per_page,
                             entries.count())
@@ -192,7 +192,7 @@ def feed_publisherindex():
     entries = calibre_db.session.query(db.Publishers)\
         .join(db.books_publishers_link)\
         .join(db.Books).filter(calibre_db.common_filters())\
-        .group_by(text('books_publishers_link.publisher'))\
+        .group_by(db.Publishers.id)\
         .order_by(db.Publishers.sort)\
         .limit(config.config_books_per_page).offset(off)
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1), config.config_books_per_page,
@@ -225,7 +225,7 @@ def feed_letter_category(book_id):
         .join(db.books_tags_link)\
         .join(db.Books)\
         .filter(calibre_db.common_filters()).filter(letter)\
-        .group_by(text('books_tags_link.tag'))\
+        .group_by(db.Tags.id)\
         .order_by(db.Tags.name)
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1), config.config_books_per_page,
                             entries.count())
@@ -258,7 +258,7 @@ def feed_letter_series(book_id):
         .join(db.books_series_link)\
         .join(db.Books)\
         .filter(calibre_db.common_filters()).filter(letter)\
-        .group_by(text('books_series_link.series'))\
+        .group_by(db.Series.id)\
         .order_by(db.Series.sort)
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1), config.config_books_per_page,
                             entries.count())
@@ -289,7 +289,7 @@ def feed_ratingindex():
         .join(db.books_ratings_link)\
         .join(db.Books)\
         .filter(calibre_db.common_filters()) \
-        .group_by(text('books_ratings_link.rating'))\
+        .group_by(db.Ratings.id)\
         .order_by(db.Ratings.rating).all()
 
     pagination = Pagination((int(off) / (int(config.config_books_per_page)) + 1), config.config_books_per_page,
@@ -312,7 +312,7 @@ def feed_formatindex():
     if not auth.current_user().check_visibility(constants.SIDEBAR_FORMAT):
         abort(404)
     off = request.args.get("offset") or 0
-    entries = calibre_db.session.query(db.Data).join(db.Books)\
+    entries = calibre_db.session.query(db.Data.format).join(db.Books)\
         .filter(calibre_db.common_filters()) \
         .group_by(db.Data.format)\
         .order_by(db.Data.format).all()

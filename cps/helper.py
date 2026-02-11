@@ -768,7 +768,6 @@ def get_book_cover_internal(book, resolution=None):
                 if cache.get_cache_file_exists(thumbnail.filename, CACHE_TYPE_THUMBNAILS):
                     return send_from_directory(cache.get_cache_file_dir(thumbnail.filename, CACHE_TYPE_THUMBNAILS),
                                                thumbnail.filename)
-
         # Send the book cover from Google Drive if configured
         if config.config_use_google_drive:
             try:
@@ -783,10 +782,11 @@ def get_book_cover_internal(book, resolution=None):
             except Exception as ex:
                 log.error_or_exception(ex)
                 return get_cover_on_failure()
-
         # Send the book cover from the Calibre directory
         else:
             cover_file_path = os.path.join(config.get_book_path(), book.path)
+            log.info(f" book cover file path chacking !! {cover_file_path}")
+
             if os.path.isfile(os.path.join(cover_file_path, "cover.jpg")):
                 return send_from_directory(cover_file_path, "cover.jpg")
             else:
@@ -980,6 +980,14 @@ def do_download_file(book, book_format, client, data, headers):
         else:
             download_name = book_name
 
+    if not download_name:
+        download_name = book_name
+    if not filename:
+        if config.config_use_google_drive:
+            filename = os.path.join(config.config_calibre_dir, book.path)
+        else:
+            filename = os.path.join(config.get_book_path(), book.path)
+
     response = make_response(send_from_directory(filename, download_name + "." + book_format))
     # ToDo Check headers parameter
     for element in headers:
@@ -990,7 +998,7 @@ def do_download_file(book, book_format, client, data, headers):
 
 def do_kepubify_metadata_replace(book, file_path):
     custom_columns = (calibre_db.session.query(db.CustomColumns)
-                      .filter(db.CustomColumns.mark_for_delete == 0)
+                      .filter(db.CustomColumns.mark_for_delete == False)
                       .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions))
                       .order_by(db.CustomColumns.label).all())
 

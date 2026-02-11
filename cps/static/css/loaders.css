@@ -1,0 +1,161 @@
+/* Initial Page Loader - Premium Spinner */
+.site-preloader.initial-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+    opacity: 1;
+    visibility: visible;
+}
+
+.site-preloader.initial-loader.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.site-preloader .preloader-content,
+.page-loader .preloader-content {
+    text-align: center;
+    animation: fadeInUp 0.6s ease-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+}
+
+.loader-branding {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.loader-logo {
+    width: 80px;
+    height: 80px;
+    /* Removed pulse animation for cleaner look, or keep subtle if desired */
+}
+
+.loader-site-name {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.loader-site-name .name-part1 {
+    color: #ff7174;
+}
+
+.loader-site-name .name-part2 {
+    color: #0746b3;
+}
+
+/* Premium Spinner Animation (Blue Gradient Ring) */
+.spinner-loader {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(farthest-side, #0746b3 94%, #0000) top/9px 9px no-repeat,
+        conic-gradient(#0000 30%, #0746b3);
+    -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 9px), #000 0);
+    mask: radial-gradient(farthest-side, #0000 calc(100% - 9px), #000 0);
+    animation: spinner-rotate 1s infinite linear;
+}
+
+@keyframes spinner-rotate {
+    100% {
+        transform: rotate(1turn);
+    }
+}
+
+.loading-text {
+    font-size: 16px;
+    color: #555;
+    font-weight: 500;
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Page Loader - Standard Spinner */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.6);
+    /* More transparent */
+    backdrop-filter: blur(2px);
+    /* Subtle blur */
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 9998;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-out, visibility 0.2s ease-out;
+    /* Faster transition */
+}
+
+.page-loader.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Page Animation */
+.initial-hidden {
+    opacity: 0;
+}
+
+.animate-up {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .loader-site-name {
+        font-size: 28px;
+    }
+
+    .loader-logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .spinner-loader {
+        width: 50px;
+        height: 50px;
+    }
+}

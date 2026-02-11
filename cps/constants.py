@@ -54,9 +54,30 @@ else:
     if getattr(sys, 'frozen', False):
         CONFIG_DIR = os.path.abspath(os.path.join(CONFIG_DIR, os.pardir))
 
-
+# For PostgreSQL, database files are not used - configuration is via environment variables
+# Keeping these for backward compatibility but they won't be used for database connections
 DEFAULT_SETTINGS_FILE = "app.db"
 DEFAULT_GDRIVE_FILE = "gdrive.db"
+
+# Database Types
+DATABASE_SQLITE = 'sqlite'
+DATABASE_POSTGRESQL = 'postgresql'
+
+# Current database type - can be set via environment variable
+DATABASE_TYPE = os.environ.get('DATABASE_TYPE', DATABASE_POSTGRESQL)
+
+# PostgreSQL Environment Variables
+POSTGRESQL_ENV_VARS = {
+    'DB_USERNAME': os.getenv("DB_USERNAME"),
+    'DB_PASSWORD': os.getenv("DB_PASSWORD"), 
+    'DB_HOST': os.getenv("DB_HOST"),
+    'DB_PORT': os.getenv("DB_PORT"),
+    'DATABASENAME_APP': os.getenv("DATABASENAME_APP"),
+    'DATABASENAME_APP': os.getenv("DATABASENAME_APP")
+}
+
+# Check if PostgreSQL configuration is complete
+POSTGRESQL_CONFIGURED = all(POSTGRESQL_ENV_VARS.values())
 
 ROLE_USER               = 0 << 0
 ROLE_ADMIN              = 1 << 0
@@ -143,9 +164,14 @@ env_CALIBRE_PORT = os.environ.get("CALIBRE_PORT", DEFAULT_PORT)
 try:
     DEFAULT_PORT = int(env_CALIBRE_PORT)
 except ValueError:
-    print('Environment variable CALIBRE_PORT has invalid value (%s), faling back to default (8083)' % env_CALIBRE_PORT)
+    print('Environment variable CALIBRE_PORT has invalid value (%s), falling back to default (8083)' % env_CALIBRE_PORT)
 del env_CALIBRE_PORT
 
+# PostgreSQL Default Connection Parameters
+DEFAULT_POSTGRESQL_PORT = 5432
+DEFAULT_POSTGRESQL_HOST = "localhost"
+DEFAULT_POSTGRESQL_USER = "calibreweb"
+DEFAULT_POSTGRESQL_APP_DB = "calibreweb_app"
 
 EXTENSIONS_AUDIO = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
 EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',
@@ -168,6 +194,56 @@ def has_flag(value, bit_flag):
 
 def selected_roles(dictionary):
     return sum(v for k, v in ALL_ROLES.items() if k in dictionary)
+
+
+def is_postgresql_configured():
+    """Check if PostgreSQL environment variables are properly configured"""
+    return POSTGRESQL_CONFIGURED
+
+
+def get_postgresql_connection_url(db_type='app'):
+    """
+    Generate PostgreSQL connection URL based on environment variables
+    
+    Args:
+        db_type (str): 'app' for application database, 'calibre' for calibre database
+    
+    Returns:
+        str: PostgreSQL connection URL
+    """
+    if not is_postgresql_configured():
+        raise ValueError("PostgreSQL environment variables are not properly configured")
+    
+    username = POSTGRESQL_ENV_VARS['DB_USERNAME']
+    password = POSTGRESQL_ENV_VARS['DB_PASSWORD']
+    host = POSTGRESQL_ENV_VARS['DB_HOST']
+    port = POSTGRESQL_ENV_VARS['DB_PORT']
+    
+    if db_type == 'app':
+        database = POSTGRESQL_ENV_VARS['DATABASENAME_APP']
+    else:
+        database = POSTGRESQL_ENV_VARS['DATABASENAME_APP']
+    
+    # Properly encode password for URL (handle special characters)
+    from urllib.parse import quote_plus
+    encoded_password = quote_plus(password)
+    
+    return f"postgresql+psycopg2://{username}:{encoded_password}@{host}:{port}/{database}"
+
+
+def get_database_type():
+    """Get current database type"""
+    return DATABASE_TYPE
+
+
+def using_postgresql():
+    """Check if using PostgreSQL database"""
+    return DATABASE_TYPE == DATABASE_POSTGRESQL
+
+
+def using_sqlite():
+    """Check if using SQLite database"""
+    return DATABASE_TYPE == DATABASE_SQLITE
 
 
 # :rtype: BookMeta
@@ -194,6 +270,28 @@ COVER_THUMBNAIL_ORIGINAL = 0
 COVER_THUMBNAIL_SMALL    = 1
 COVER_THUMBNAIL_MEDIUM   = 2
 COVER_THUMBNAIL_LARGE    = 3
+
+# Database Connection Pool Settings for PostgreSQL
+POSTGRESQL_POOL_SETTINGS = {
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_recycle': 3600,  # Recycle connections after 1 hour
+    'pool_pre_ping': True,  # Enable connection health checks
+    'pool_timeout': 30,     # 30 seconds timeout
+}
+
+# SQLite Connection Settings (for backward compatibility)
+SQLITE_CONNECTION_SETTINGS = {
+    'check_same_thread': False,
+    'isolation_level': "SERIALIZABLE",
+}
+
+# Database Migration Settings
+DATABASE_MIGRATION_ENABLED = True
+DATABASE_AUTO_MIGRATE = True
+
+# Database Schema Settings
+POSTGRESQL_SCHEMA = 'public'  # Default PostgreSQL schema
 
 # clean-up the module namespace
 del sys, os, namedtuple
