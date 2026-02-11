@@ -23,7 +23,7 @@ GetMyEBook-Web is a powerful, feature-rich web application for browsing, reading
 </details>
 <br>
 
-![Main screen](ui-chacking/docs/images/about.png)
+![Main screen](cps/static/img/about.png)
 
 ## Features
 - Modern and responsive Bootstrap 3 HTML5 interface
