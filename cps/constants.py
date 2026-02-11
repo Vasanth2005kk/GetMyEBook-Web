@@ -33,7 +33,7 @@ HOME_CONFIG = os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(__file
 UPDATER_AVAILABLE = True
 
 # Base dir is parent of current file, necessary if called from different folder
-BASE_DIR            = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 # if executable file the files should be placed in the parent dir (parallel to the exe file)
 
 STATIC_DIR          = os.path.join(BASE_DIR, 'cps', 'static')

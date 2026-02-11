@@ -720,7 +720,7 @@ def init_db(app_db_path=None):
     
     # PostgreSQL connection
     from urllib.parse import quote
-    encodepassword = quote(DB_PASSWORD)
+    encodepassword = quote(DB_PASSWORD or "")
     DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     engine = create_engine(

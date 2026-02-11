@@ -402,13 +402,22 @@ class ConfigSQL(object):
         self.db_configured = have_metadata_db
         # constants.EXTENSIONS_UPLOAD = [x.lstrip().rstrip().lower() for x in self.config_upload_formats.split(',')]
         from . import cli_param
-        if os.environ.get('FLASK_DEBUG'):
-            logfile = logger.setup(logger.LOG_TO_STDOUT, logger.logging.DEBUG)
+        # Only use stdout if FLASK_DEBUG is explicitly set to '1' or 'true'
+        flask_debug = os.environ.get('FLASK_DEBUG')
+        is_debug = flask_debug and flask_debug.lower() in ['1', 'true']
+        
+        if is_debug:
+            logger.setup(logger.LOG_TO_STDOUT, logger.logging.DEBUG)
+            # When in debug mode, we don't want to update the logfile in the database
+            # to /dev/stdout, so we stop here or ensure we don't hit the update logic below.
+            logfile = self.config_logfile 
         else:
             # pylint: disable=access-member-before-definition
             logfile = logger.setup(cli_param.logpath or self.config_logfile, self.config_log_level)
-        if logfile != os.path.abspath(self.config_logfile):
-            if logfile != os.path.abspath(cli_param.logpath):
+        
+        # Only update the database if the logfile actually changed and we are not in debug mode
+        if not is_debug and logfile != os.path.abspath(self.config_logfile):
+            if logfile != os.path.abspath(cli_param.logpath or ""):
                 log.warning("Log path %s not valid, falling back to default", self.config_logfile)
             self.config_logfile = logfile
             s.config_logfile = logfile

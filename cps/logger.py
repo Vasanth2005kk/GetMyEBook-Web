@@ -31,7 +31,7 @@ ACCESS_FORMATTER_TORNADO = Formatter("[%(asctime)s] %(message)s")
 
 FORMATTER           = Formatter("[%(asctime)s] %(levelname)5s {%(name)s:%(lineno)d} %(message)s")
 DEFAULT_LOG_LEVEL   = logging.INFO
-DEFAULT_LOG_FILE    = os.path.join(_CONFIG_DIR, "calibre-web.log")
+DEFAULT_LOG_FILE    = os.path.join(_CONFIG_DIR, "getmyebook-web.log")
 DEFAULT_ACCESS_LOG  = os.path.join(_CONFIG_DIR, "access.log")
 LOG_TO_STDERR       = '/dev/stderr'
 LOG_TO_STDOUT       = '/dev/stdout'
@@ -126,7 +126,9 @@ def setup(log_file, log_level=None):
     logging.getLogger(__package__).setLevel(log_level)
 
     r = logging.root
-    if log_level >= logging.INFO or os.environ.get('FLASK_DEBUG'):
+    flask_debug = os.environ.get('FLASK_DEBUG')
+    is_debug = flask_debug and flask_debug.lower() in ['1', 'true']
+    if log_level >= logging.INFO or is_debug:
         # avoid spamming the log with debug messages from libraries
         r.setLevel(log_level)
 
@@ -207,4 +209,6 @@ class StderrLogger(object):
 
 
 # default configuration, before application settings are applied
-setup(LOG_TO_STDERR, logging.DEBUG if os.environ.get('FLASK_DEBUG') else DEFAULT_LOG_LEVEL)
+flask_debug = os.environ.get('FLASK_DEBUG')
+is_debug = flask_debug and flask_debug.lower() in ['1', 'true']
+setup(LOG_TO_STDERR, logging.DEBUG if is_debug else DEFAULT_LOG_LEVEL)
