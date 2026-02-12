@@ -328,6 +328,8 @@ def create_app():
     def shutdown_session(exception=None):
         if db_session:
             db_session.remove()
+        if db.CalibreDB.session_factory:
+            db.CalibreDB.session_factory.remove()
 
     return app
 

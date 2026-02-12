@@ -530,6 +530,10 @@ def render_downloaded_books(page, order, user_id):
 
 
 def render_author_books(page, author_id, order):
+    try:
+        author_id = int(author_id)
+    except (ValueError, TypeError):
+        abort(404)
     entries, __, pagination = calibre_db.fill_indexpage(page, 0,
                                                         db.Books,
                                                         db.Books.authors.any(db.Authors.id == author_id),
@@ -561,7 +565,13 @@ def render_author_books(page, author_id, order):
 
 
 def render_publisher_books(page, book_id, order):
-    if book_id == '-1':
+    try:
+        book_id = int(book_id)
+    except (ValueError, TypeError):
+        if book_id != '-1':
+            abort(404)
+
+    if book_id == -1:
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
                                                                 db.Books,
                                                                 db.Publishers.name == None,
@@ -598,7 +608,13 @@ def render_publisher_books(page, book_id, order):
 
 
 def render_series_books(page, book_id, order):
-    if book_id == '-1':
+    try:
+        book_id = int(book_id)
+    except (ValueError, TypeError):
+        if book_id != '-1':
+            abort(404)
+
+    if book_id == -1:
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
                                                                 db.Books,
                                                                 db.Series.name == None,
@@ -624,7 +640,13 @@ def render_series_books(page, book_id, order):
 
 
 def render_ratings_books(page, book_id, order):
-    if book_id == '-1':
+    try:
+        book_id = int(book_id)
+    except (ValueError, TypeError):
+        if book_id != '-1':
+            abort(404)
+
+    if book_id == -1:
         db_filter = coalesce(db.Ratings.rating, 0) < 1
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
                                                                 db.Books,
@@ -680,7 +702,13 @@ def render_formats_books(page, book_id, order):
 
 
 def render_category_books(page, book_id, order):
-    if book_id == '-1':
+    try:
+        book_id = int(book_id)
+    except (ValueError, TypeError):
+        if book_id != '-1':
+            abort(404)
+
+    if book_id == -1:
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
                                                                 db.Books,
                                                                 db.Tags.name == None,
