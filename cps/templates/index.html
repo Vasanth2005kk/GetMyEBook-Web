@@ -4,7 +4,7 @@
 {# Temporarily showing carousel always for testing #}
 {% if page != "discover" and page != "rated" %}
 <div class="discover random-books">
-  {% if random.__len__() > 0 %}
+  {% if random%}
   <div class="book-carousel-wrapper">
     <div class="book-carousel" id="heroCarousel">
       {% for entry in random %}

@@ -469,11 +469,11 @@ def render_hot_books(page, order):
             order = [func.count(ub.Downloads.book_id).desc()], 'hotdesc'
         if current_user.show_detail_random():
             random_query = calibre_db.generate_linked_query(config.config_read_column, db.Books)
-            random = (random_query.filter(calibre_db.common_filters())
+            random = list(random_query.filter(calibre_db.common_filters())
                      .order_by(func.random())
                      .limit(config.config_random_books).all())
         else:
-            random = false()
+            random = False
 
         off = int(int(config.config_books_per_page) * (page - 1))
         all_books = ub.session.query(ub.Downloads.book_id, func.count(ub.Downloads.book_id).label('count')) \

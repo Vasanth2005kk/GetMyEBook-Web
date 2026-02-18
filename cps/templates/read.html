@@ -6,6 +6,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <title>{{_('epub Reader')}} | {{title}}</title>
     <meta name="description" content="">
+    <meta name="keywords" content="ebook management, library management, digital library, free ebooks, ebook download">
+    <meta name="description"
+        content="GetMyEBook is an advanced eBook library management website to search, read and download free ebooks online.">
+
     <meta name="viewport" content="width=device-width, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     {% if g.google_site_verification|length > 0 %}
@@ -55,24 +59,24 @@
                 <a id="slider" class="icon-menu">Menu</a>
             </div>
             <div id="metainfo">
-	            <span id="book-title"></span>
-	            <span id="title-seperator">&nbsp;&nbsp;–&nbsp;&nbsp;</span>
-	            <span id="chapter-title"></span>
-	        </div>
-	        <div id="title-controls">
-	            <a id="bookmark" class="icon-bookmark-empty">Bookmark</a>
-	            <a id="setting" class="icon-cog">Settings</a>
-	            <a id="fullscreen" class="icon-resize-full">Fullscreen</a>            
-	        </div>
-	    </div>
+                <span id="book-title"></span>
+                <span id="title-seperator">&nbsp;&nbsp;–&nbsp;&nbsp;</span>
+                <span id="chapter-title"></span>
+            </div>
+            <div id="title-controls">
+                <a id="bookmark" class="icon-bookmark-empty">Bookmark</a>
+                <a id="setting" class="icon-cog">Settings</a>
+                <a id="fullscreen" class="icon-resize-full">Fullscreen</a>
+            </div>
+        </div>
 
-	    <div id="divider"></div>
-	    <div id="prev" class="arrow">‹</div>
-	    <div id="viewer"></div>
-	    <div id="next" class="arrow">›</div>
-	    <div id="progress">0%</div>
-	    <div id="loader"><img src="{{ url_for('static', filename='img/loader.gif') }}"></div>
-	</div>
+        <div id="divider"></div>
+        <div id="prev" class="arrow">‹</div>
+        <div id="viewer"></div>
+        <div id="next" class="arrow">›</div>
+        <div id="progress">0%</div>
+        <div id="loader"><img src="{{ url_for('static', filename='img/loader.gif') }}"></div>
+    </div>
     <div class="modal md-effect-1" id="settings-modal">
         <div class="md-content">
             <h3>{{_('Settings')}}</h3>
@@ -91,29 +95,30 @@
             </div>
             <div class="form-group">
                 <p>
-                    <input type="checkbox" id="sidebarReflow"
-                        name="sidebarReflow">{{_('Reflow text when sidebars are open.')}}
+                    <input type="checkbox" id="sidebarReflow" name="sidebarReflow">{{_('Reflow text when sidebars are
+                    open.')}}
                 </p>
             </div>
             <div class="form-group fontSizeWrapper">
                 <div class="slider">
                     <label for="fader">{{ _('Font Sizes') }}</label>
                     <input type="range" min="75" max="200" value="100" id="fontSizeFader" step="25">
-                </div>            
+                </div>
             </div>
-              <div class="font" id="font">
+            <div class="font" id="font">
                 <label class="item">{{_('Font')}}:</label>
-                <button type="button" id="default" onclick="selectFont(this.id)"><span>✓</span>{{_('Default')}}</button> 
+                <button type="button" id="default" onclick="selectFont(this.id)"><span>✓</span>{{_('Default')}}</button>
                 <button type="button" id="Yahei" onclick="selectFont(this.id)"><span></span>{{_('Yahei')}}</button>
                 <button type="button" id="SimSun" onclick="selectFont(this.id)"><span></span>{{_('SimSun')}}</button>
                 <button type="button" id="KaiTi" onclick="selectFont(this.id)"><span></span>{{_('KaiTi')}}</button>
                 <button type="button" id="Arial" onclick="selectFont(this.id)"><span></span>{{_('Arial')}}</button>
-              </div>
-              <div class="layou" id="layout">
+            </div>
+            <div class="layou" id="layout">
                 <label class="item">{{ _('Spread') }}:</label>
                 <button type="button" id="spread" onclick="spread(this.id)"><span>✓</span>{{_('Two columns')}}</button>
-                <button type="button" id="nonespread" onclick="spread(this.id)"><span></span>{{_('One column')}}</button>
-              </div>            
+                <button type="button" id="nonespread" onclick="spread(this.id)"><span></span>{{_('One
+                    column')}}</button>
+            </div>
             <div class="closer icon-cancel-circled"></div>
         </div>
     </div>
@@ -151,7 +156,7 @@
             },
         };
 
-        function selectTheme (id) {
+        function selectTheme(id) {
             let tickSpans = document.getElementById("themes").querySelectorAll("span");
 
             // Remove tick mark from all theme buttons
@@ -164,7 +169,7 @@
 
             // Saving theme to local storage
             localStorage.setItem("calibre.reader.theme", id);
-            
+
             // Apply theme to epubjs iframe
             reader.rendition.themes.select(id);
 
@@ -181,35 +186,36 @@
         let defaultFont;
 
         function selectFont(id) {
-          if (!defaultFont) {
-            defaultFont = reader.rendition.getContents()[0]?.css('font-family');
-          }
+            if (!defaultFont) {
+                defaultFont = reader.rendition.getContents()[0]?.css('font-family');
+            }
 
-          spans = document.getElementById("font").querySelectorAll("span");
-          for(var i = 0; i < spans.length; i++) {
-            spans[i].textContent = "";
-          }
-          document.getElementById(id).querySelector("span").textContent = "✓";
-          
-          if (id == 'default') {
-            reader.rendition.themes.font(defaultFont);
-            return;
-          }
-          reader.rendition.themes.font(id);
+            spans = document.getElementById("font").querySelectorAll("span");
+            for (var i = 0; i < spans.length; i++) {
+                spans[i].textContent = "";
+            }
+            document.getElementById(id).querySelector("span").textContent = "✓";
+
+            if (id == 'default') {
+                reader.rendition.themes.font(defaultFont);
+                return;
+            }
+            reader.rendition.themes.font(id);
         }
 
         function spread(id) {
-          spans = document.getElementById("layout").querySelectorAll("span");
-          for(var i = 0; i < spans.length; i++) {
-            spans[i].textContent = "";
-          }
-          document.getElementById(id).querySelector("span").textContent = "✓";
-          reader.rendition.spread(id==='spread'?true:'none');
+            spans = document.getElementById("layout").querySelectorAll("span");
+            for (var i = 0; i < spans.length; i++) {
+                spans[i].textContent = "";
+            }
+            document.getElementById(id).querySelector("span").textContent = "✓";
+            reader.rendition.spread(id === 'spread' ? true : 'none');
         }
-      </script>
-      <script src="{{ url_for('static', filename='js/libs/screenfull.min.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/libs/reader.min.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/reading/epub.js') }}"></script>
-      <script src="{{ url_for('static', filename='js/reading/epub-progress.js') }}"></script>      
-    </body>
+    </script>
+    <script src="{{ url_for('static', filename='js/libs/screenfull.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/libs/reader.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reading/epub.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reading/epub-progress.js') }}"></script>
+</body>
+
 </html>
