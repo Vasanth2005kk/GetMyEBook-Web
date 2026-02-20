@@ -31,7 +31,7 @@ from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float, Sequence
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 try:
     # Compatibility with sqlalchemy 2.0
     from sqlalchemy.orm import declarative_base
@@ -808,7 +808,11 @@ class CalibreDB:
                               .filter(ub.ArchivedBook.is_archived==True)
                               .all())
             archived_book_ids = [archived_book.book_id for archived_book in archived_books]
-            archived_filter = Books.id.notin_(archived_book_ids)
+            # Guard: .notin_([]) generates "NOT IN (NULL)" which aborts PostgreSQL transactions
+            if archived_book_ids:
+                archived_filter = Books.id.notin_(archived_book_ids)
+            else:
+                archived_filter = true()
         else:
             archived_filter = true()
 
@@ -1041,7 +1045,12 @@ class CalibreDB:
         return query.filter(self.common_filters(True)).filter(or_(*filter_expression))
 
     def get_cc_columns(self, config, filter_config_custom_read=False):
-        tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        try:
+            tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        except SQLAlchemyError as e:
+            log.error("Database error fetching custom columns: {}".format(e))
+            self.session.rollback()
+            return []
         cc = []
         r = None
         if config.config_columns_to_ignore:

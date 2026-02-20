@@ -54,7 +54,7 @@ def create_threads():
             log.error("Error: No users found.")
             return
 
-        log.info(f"Assigning threads to user: {admin_user.name}")
+        # log.info(f"Assigning threads to user: {admin_user.name}")
 
         for book in books:
             # Check if thread exists
