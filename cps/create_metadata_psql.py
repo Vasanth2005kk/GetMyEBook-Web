@@ -40,23 +40,32 @@ def ensure_pgloader_installed():
 # Helper: Create DB
 # -------------------------------------
 def create_database_if_not_exists():
+    # Re-read env vars at call time to pick up values from .env (which may not have existed at import time)
+    from dotenv import load_dotenv
+    load_dotenv(get_env_path(), override=True)
+    _db_user = os.getenv("DB_USERNAME") or DB_USER
+    _db_password = os.getenv("DB_PASSWORD") or DB_PASSWORD
+    _db_host = os.getenv("DB_HOST") or DB_HOST
+    _db_port = os.getenv("DB_PORT") or DB_PORT
+    _db_name = os.getenv("DATABASENAME_APP") or DB_NAME
+
     # Encode password safely
-    encoded_pw = urllib.parse.quote_plus(DB_PASSWORD)
+    encoded_pw = urllib.parse.quote_plus(_db_password or "")
 
     # Admin DB connection for creating DB
     POSTGRES_ADMIN_URL = (
-        f"postgresql+psycopg2://{DB_USER}:{encoded_pw}@{DB_HOST}:{DB_PORT}/postgres"
+        f"postgresql+psycopg2://{_db_user}:{encoded_pw}@{_db_host}:{_db_port}/postgres"
     )
     
     engine = create_engine(POSTGRES_ADMIN_URL, isolation_level="AUTOCOMMIT")
 
     try:
         with engine.connect() as conn:
-            conn.execute(text(f"CREATE DATABASE {DB_NAME};"))
-            log.info(f"✔ Database '{DB_NAME}' created.")
+            conn.execute(text(f"CREATE DATABASE {_db_name};"))
+            log.info(f"✔ Database '{_db_name}' created.")
     except ProgrammingError as e:
         if "already exists" in str(e):
-            log.info(f"✔ Database '{DB_NAME}' already exists.")
+            log.info(f"✔ Database '{_db_name}' already exists.")
         else:
             log.error(f"⚠ Error creating database: {e}")
             raise
