@@ -695,10 +695,15 @@ def create_admin_user(_session):
 
 def init_db_thread():
     global app_DB_path
-    # PostgreSQL connection
+    # Re-read env vars at call time to pick up values from .env (which may not have existed at import time)
     from urllib.parse import quote
-    encodepassword = quote(DB_PASSWORD)
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    _db_user = os.getenv("DB_USERNAME") or DB_USER
+    _db_password = os.getenv("DB_PASSWORD") or DB_PASSWORD
+    _db_host = os.getenv("DB_HOST") or DB_HOST
+    _db_port = os.getenv("DB_PORT") or DB_PORT
+    _db_name = os.getenv("DATABASENAME_APP") or DB_NAME
+    encodepassword = quote(_db_password or "")
+    DATABASE_URL = f"postgresql+psycopg2://{_db_user}:{encodepassword}@{_db_host}:{_db_port}/{_db_name}"
 
     engine = create_engine(
         DATABASE_URL,
@@ -718,10 +723,16 @@ def init_db(app_db_path=None):
 
     app_DB_path = app_db_path
     
-    # PostgreSQL connection
+    # Re-read env vars at call time (the .env may have just been created by the first-run wizard)
+    load_dotenv(get_env_path(), override=True)
     from urllib.parse import quote
-    encodepassword = quote(DB_PASSWORD or "")
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    _db_user = os.getenv("DB_USERNAME") or DB_USER
+    _db_password = os.getenv("DB_PASSWORD") or DB_PASSWORD
+    _db_host = os.getenv("DB_HOST") or DB_HOST
+    _db_port = os.getenv("DB_PORT") or DB_PORT
+    _db_name = os.getenv("DATABASENAME_APP") or DB_NAME
+    encodepassword = quote(_db_password or "")
+    DATABASE_URL = f"postgresql+psycopg2://{_db_user}:{encodepassword}@{_db_host}:{_db_port}/{_db_name}"
 
     engine = create_engine(
         DATABASE_URL,
@@ -775,8 +786,14 @@ def password_change(user_credentials=None):
 
 def get_new_session_instance():
     from urllib.parse import quote
-    encodepassword = quote(DB_PASSWORD)
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{encodepassword}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    # Re-read env vars at call time to pick up values from .env (which may not have existed at import time)
+    _db_user = os.getenv("DB_USERNAME") or DB_USER
+    _db_password = os.getenv("DB_PASSWORD") or DB_PASSWORD
+    _db_host = os.getenv("DB_HOST") or DB_HOST
+    _db_port = os.getenv("DB_PORT") or DB_PORT
+    _db_name = os.getenv("DATABASENAME_APP") or DB_NAME
+    encodepassword = quote(_db_password or "")
+    DATABASE_URL = f"postgresql+psycopg2://{_db_user}:{encodepassword}@{_db_host}:{_db_port}/{_db_name}"
 
     new_engine = create_engine(
         DATABASE_URL,
