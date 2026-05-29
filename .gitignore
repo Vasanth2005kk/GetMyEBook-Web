@@ -47,4 +47,3 @@ fix_metadata_dirtied.py
 fix_tables.py
 chacking.*
 docs/
-migrations/versions/*
