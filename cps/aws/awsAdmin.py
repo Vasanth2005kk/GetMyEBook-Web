@@ -10,10 +10,10 @@ import datetime
 from functools import wraps
 
 from flask import Blueprint, request, jsonify, render_template, flash, redirect, url_for, abort
-from .cw_login import current_user
+from ..cw_login import current_user
 
-from . import ub, logger
-from .services.aws_s3 import (
+from .. import ub, logger
+from .awsS3 import (
     encrypt_value,
     decrypt_value,
     validate_credentials_payload,
@@ -27,7 +27,15 @@ from .services.aws_s3 import (
 
 log = logger.create()
 
-aws_s3 = Blueprint("aws_s3", __name__)
+# Serve templates and static files from the package folder
+# Use an explicit static_url_path to avoid colliding with the app's global /static
+aws_s3 = Blueprint(
+    "aws_s3",
+    __name__,
+    template_folder="templates",
+    static_folder="static",
+    static_url_path="/aws_s3/static",
+)
 
 # ---------------------------------------------------------------------------
 # Auth guard
@@ -87,7 +95,7 @@ def aws_s3_page():
             "updated_at": record.updated_at.strftime("%Y-%m-%d %H:%M UTC") if record.updated_at else "",
         }
     return render_template(
-        "aws_s3_admin.html",
+        "awsAdminPanel.html",
         credential=credential,
         regions=VALID_AWS_REGIONS,
         output_formats=VALID_OUTPUT_FORMATS,

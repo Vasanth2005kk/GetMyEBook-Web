@@ -1,5 +1,5 @@
 /* ============================================================
-   aws_s3_admin.js  –  AWS S3 Admin Panel JavaScript
+   awsAdminPanel.js  –  AWS S3 Admin Panel JavaScript
    Depends on: jQuery (already loaded globally by layout.html)
    ============================================================ */
 

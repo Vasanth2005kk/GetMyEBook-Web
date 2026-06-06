@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
 {% block header %}
-<link href="{{ url_for('static', filename='css/aws_s3_admin.css') }}" rel="stylesheet">
+<link href="{{ url_for('aws_s3.static', filename='css/awsAdminPanel.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block body %}
@@ -107,14 +107,14 @@
                 </div>
                 <div class="panel-body">
                     <div class="row">
-                        <div class="col-sm-6">
+                        <div class="col-sm-12">
                             <div class="form-group required">
                                 <label class="control-label" for="aws_access_key_id">{{_('Access Key ID')}}</label>
                                 <input class="form-control" type="text" id="aws_access_key_id" placeholder="AKIA..." autocomplete="off">
                                 <p class="aws-form-hint">{{_('Your 20-character identifier')}}</p>
                             </div>
                         </div>
-                        <div class="col-sm-6">
+                        <div class="col-sm-12">
                             <div class="form-group required">
                                 <label class="control-label" for="aws_secret_access_key">{{_('Secret Access Key')}}</label>
                                 <input class="form-control" type="password" id="aws_secret_access_key" placeholder="••••••••••••••••" autocomplete="new-password">
@@ -124,7 +124,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-sm-6">
+                        <div class="col-sm-12">
                             <div class="form-group required">
                                 <label class="control-label" for="aws_default_region">{{_('Region')}}</label>
                                 <select class="form-control" id="aws_default_region">
@@ -135,7 +135,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-sm-6">
+                        <div class="col-sm-12">
                             <div class="form-group">
                                 <label class="control-label" for="aws_default_output_format">{{_('Format')}}</label>
                                 <select class="form-control" id="aws_default_output_format">
@@ -257,5 +257,5 @@
 <script>
     window.AWS_CRED_ID = {{ credential.id if credential else 'null' }};
 </script>
-<script src="{{ url_for('static', filename='js/aws_s3_admin.js') }}"></script>
+<script src="{{ url_for('aws_s3.static', filename='js/awsAdminPanel.js') }}"></script>
 {% endblock %}

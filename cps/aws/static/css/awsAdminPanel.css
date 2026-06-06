@@ -1,9 +1,14 @@
-/* ============================================================
-   aws_s3_admin.css  –  AWS S3 Admin Panel Styles (Enhanced)
-   Adapts to both light and dark themes via CSS variables
-   defined in the existing update_style.css / style.css.
-   ============================================================ */
 
+:root {
+    --primary-color: #ff7174;
+    --secondary-color:#0746b3;
+}
+
+.btn-toolbar{
+    margin-left: 0 !important;
+    display: flex;
+    justify-content: space-evenly;
+}
 /* ── Page wrapper ─────────────────────────────────────────── */
 .aws-s3-page {
     position: relative;
@@ -26,24 +31,23 @@
     gap: 15px;
     margin: 10px 0 25px;
     padding-bottom: 15px;
-    border-bottom: 2px solid #FF9900;
+    border-bottom: 2px solid var(--secondary-color);
 }
 .aws-s3-page .section-heading .heading-icon {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, #FF9900, #ffb347);
+    background: rgba(7, 70, 179, 0.1);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #1a1a1a;
+    color: var(--primary-color);
     font-size: 18px;
     flex-shrink: 0;
-    box-shadow: 0 4px 10px rgba(255, 153, 0, 0.3);
+    box-shadow: 0 4px 10px rgba(7, 70, 179, 0.3);
 }
 .aws-s3-page .section-heading h3 {
     margin: 0;
-    font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: #333;
@@ -60,11 +64,11 @@
     border: 1px solid rgba(128,128,128,0.1);
 }
 .aws-toggle-label {
-    font-size: 0.9rem;
+    font-size: 1.3rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #FF9900;
+    color: var(--primary-color);
     min-width: 60px;
 }
 .aws-switch {
@@ -91,8 +95,8 @@
     transition: .4s;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
-input:checked + .aws-slider { background-color: #FF9900; }
-input:focus + .aws-slider { box-shadow: 0 0 1px #FF9900; }
+input:checked + .aws-slider { background-color: var(--primary-color); }
+input:focus + .aws-slider { box-shadow: 0 0 1px var(--primary-color); }
 input:checked + .aws-slider:before { transform: translateX(26px); }
 .aws-slider.round { border-radius: 24px; }
 .aws-slider.round:before { border-radius: 50%; }
@@ -123,7 +127,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 }
 .glass-icon {
     font-size: 50px;
-    color: #FF9900;
+    color: var(--primary-color);
     margin-bottom: 20px;
 }
 .glass-content h2 { margin: 0 0 10px; font-weight: 800; color: #222; }
@@ -138,7 +142,6 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 }
 .aws-s3-page .section-heading small {
     display: block;
-    font-size: 0.95rem;
     opacity: 0.8;
     font-weight: 500;
     margin-top: 4px;
@@ -162,7 +165,6 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 }
 .aws-s3-page .panel-title {
     font-weight: 700;
-    font-size: 1.15rem;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -218,7 +220,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 }
 .aws-badge-warning {
     background: rgba(255,153,0,0.12);
-    color: #FF9900;
+    color: var(--primary-color);
     border: 1px solid rgba(255,153,0,0.3);
 }
 
@@ -246,13 +248,12 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 .aws-status-box.error {
     background: rgba(220,53,69,0.08);
     border: 1px solid rgba(220,53,69,0.2);
-    color: #dc3545;
+    color: var(--secondary-color);
 }
 .aws-status-box .glyphicon { margin-right: 8px; }
 
 /* ── Form helpers ─────────────────────────────────────────── */
 .aws-form-hint {
-    font-size: 0.8rem;
     color: #888;
     margin-top: 5px;
     font-weight: 400;
@@ -262,7 +263,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
     font-weight: 600;
     letter-spacing: 0.01em;
     content: ' *';
-    color: #dc3545;
+    color: var(--secondary-color);
     font-weight: bold;
 }
 
@@ -279,15 +280,15 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 }
 .aws-drop-zone:hover,
 .aws-drop-zone.drag-over {
-    border-color: #FF9900;
+    border-color: var(--primary-color);
     background: rgba(255,153,0,0.05);
-    color: #FF9900;
+    color: var(--primary-color);
     transform: scale(1.01);
 }
 .aws-drop-zone .drop-icon {
     font-size: 2.8rem;
     margin-bottom: 12px;
-    color: #FF9900;
+    color: var(--primary-color);
     transition: transform 0.3s ease;
 }
 .aws-drop-zone:hover .drop-icon {
@@ -309,7 +310,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 .aws-progress-wrap.show { display: block; }
 .aws-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #FF9900, #ffb347);
+    background: linear-gradient(90deg, var(--primary-color), #ffb347);
     width: 0%;
     transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 0 8px rgba(255, 153, 0, 0.4);
@@ -351,7 +352,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
     border: 1px solid rgba(255,153,0,0.2);
     border-radius: 8px;
     font-weight: 500;
-    color: #FF9900;
+    color: var(--primary-color);
 }
 .aws-selected-file.show { display: block; animation: pulse 2s infinite; }
 
@@ -361,7 +362,7 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
     100% { box-shadow: 0 0 0 0 rgba(255, 153, 0, 0); }
 }
 
-/* ── Spinner ──────────────────────────────────────────────── */
+/* ── Spinner ─────────────────────────────────────────────── */
 .aws-spinner {
     display: inline-block;
     width: 14px;
@@ -377,24 +378,21 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 
 /* ── Custom Button Styles ─────────────────────────────────── */
 .btn-primary[id*="aws"] {
-    background-color: #FF9900;
+    background-color: var(--primary-color);
     border-color: #e68a00;
     font-weight: 700;
     transition: all 0.2s ease;
     padding: 8px 20px;
-    font-size: 1rem;
 }
 .btn-primary[id*="aws"]:hover {
-    background-color: #e68a00;
-    border-color: #cc7a00;
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(255, 153, 0, 0.4);
 }
 
 .aws-s3-page .btn-default, 
 .aws-s3-page .btn-danger {
     padding: 8px 18px;
-    font-size: 0.95rem;
     font-weight: 600;
 }
 
@@ -406,7 +404,6 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
 /* ── Form Controls ────────────────────────────────────────── */
 .aws-s3-page .form-control {
     height: 42px;
-    font-size: 1rem;
     border-radius: 8px;
 }
 
@@ -432,4 +429,3 @@ input:checked + .aws-slider:before { transform: translateX(26px); }
     .cred-info-table td:first-child { display: block; width: 100%; padding-bottom: 5px; }
     .cred-info-table td:last-child { display: block; width: 100%; padding-top: 5px; border-bottom: 1px solid rgba(128,128,128,0.1); }
 }
-    
