@@ -33,11 +33,11 @@
     /* ── Show / hide status boxes ──────────────────────────── */
     function showStatus(boxId, success, msg) {
         var $box = $('#' + boxId);
-        var icon = success ? 'glyphicon-ok-circle' : 'glyphicon-exclamation-sign';
+        var iconHtml = success ? '<span class="icon icon-ok"></span>' : '<span class="icon icon-exclamation"></span>';
         $box
             .removeClass('success error show')
             .addClass('show ' + (success ? 'success' : 'error'))
-            .html('<span class="glyphicon ' + icon + '"></span> ' + esc(msg));
+            .html(iconHtml + ' ' + esc(msg));
     }
 
     function hideStatus(boxId) {
@@ -76,7 +76,7 @@
     window.awsToggleEditForm = function () {
         var $card = $('#aws-cred-form-card');
         $card.slideToggle(200);
-        hideStatus('aws-form-status');
+        hideStatus('aws-stored-status');
     };
 
     /* ── Collect form values ────────────────────────────────── */
@@ -94,7 +94,7 @@
     window.awsTestFormConnection = function () {
         var $btn = $('#btn-aws-test');
         btnLoading($btn, 'Testing…');
-        hideStatus('aws-form-status');
+        hideStatus('aws-stored-status');
 
         $.ajax({
             url: '/admin/aws-s3/test-connection',
@@ -105,11 +105,11 @@
             success: function (res) {
                 var extra = (res.details && res.details.account_id)
                     ? ' — Account: ' + res.details.account_id : '';
-                showStatus('aws-form-status', true, res.message + extra);
+                showStatus('aws-stored-status', true, res.message + extra);
             },
             error: function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Connection failed.';
-                showStatus('aws-form-status', false, msg);
+                showStatus('aws-stored-status', false, msg);
             },
             complete: function () { btnReset($btn); }
         });
@@ -142,7 +142,7 @@
     window.awsSaveCredentials = function () {
         var $btn = $('#btn-aws-save');
         btnLoading($btn, CRED_ID ? 'Updating…' : 'Saving…');
-        hideStatus('aws-form-status');
+        hideStatus('aws-stored-status');
 
         var url = CRED_ID ? '/admin/aws-s3/credentials/' + CRED_ID : '/admin/aws-s3/credentials';
         var method = CRED_ID ? 'PUT' : 'POST';
@@ -154,12 +154,37 @@
             headers: { 'X-CSRFToken': getCsrf() },
             data: JSON.stringify(getFormValues()),
             success: function (res) {
-                showStatus('aws-form-status', true, res.message);
+                showStatus('aws-stored-status', true, res.message);
                 setTimeout(function () { location.reload(); }, 1200);
             },
             error: function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Save failed.';
-                showStatus('aws-form-status', false, msg);
+                showStatus('aws-stored-status', false, msg);
+                btnReset($btn);
+            }
+        });
+    };
+
+    /* ── Disconnect stored credentials / disconnect service ───────────────── */
+    window.awsDisconnect = function (id) {
+        if (!confirm('Disconnect AWS S3 service?')) return;
+        var $btn = $('#btn-aws-disconnect');
+        btnLoading($btn, 'Disconnecting…');
+        hideStatus('aws-stored-status');
+
+        $.ajax({
+            url: '/admin/aws-s3/disconnect',
+            method: 'DELETE',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': getCsrf() },
+            data: JSON.stringify({ id: id }),
+            success: function (res) {
+                showStatus('aws-stored-status', true, res.message || 'Disconnected.');
+                setTimeout(function () { location.reload(); }, 900);
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Disconnect failed.';
+                showStatus('aws-stored-status', false, msg);
                 btnReset($btn);
             }
         });
@@ -251,7 +276,7 @@
 
         $.get('/admin/aws-s3/files', { prefix: prefix, max_keys: 100 }, function (res) {
             if (!res.success) {
-                $container.html('<p class="text-danger"><span class="glyphicon glyphicon-exclamation-sign"></span> ' + esc(res.message) + '</p>');
+                $container.html('<p class="text-danger"><span class="icon icon-exclamation"></span> ' + esc(res.message) + '</p>');
                 return;
             }
             if (!res.files.length) {
@@ -266,10 +291,10 @@
                     '<td class="text-muted" style="font-size:0.82rem;">' + esc(mod) + '</td>' +
                     '<td>' +
                         '<a href="' + esc(f.url) + '" target="_blank" class="btn btn-xs btn-default" title="Open">' +
-                            '<span class="glyphicon glyphicon-new-window"></span>' +
+                            '<span class="icon icon-new-window"></span>' +
                         '</a> ' +
                         '<button class="btn btn-xs btn-danger" title="Delete" onclick="awsDeleteFile(' + JSON.stringify(f.key) + ')">' +
-                            '<span class="glyphicon glyphicon-trash"></span>' +
+                            '<span class="icon icon-trash"></span>' +
                         '</button>' +
                     '</td>' +
                 '</tr>';
@@ -327,6 +352,12 @@
         /* File input change */
         $('#aws-file-input').on('change', function () {
             awsHandleFileSelect(this.files);
+        });
+
+        /* Credential form submission (progressive enhancement) */
+        $('#aws-cred-form').on('submit', function (e) {
+            e.preventDefault();
+            awsSaveCredentials();
         });
 
         /* Enter key triggers file search */
