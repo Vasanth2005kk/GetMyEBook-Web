@@ -229,33 +229,7 @@ change_confirm_modal %}
       </div>
     </div>
     <div class="main-container">
-      <!-- Flash Messages Container -->
-          <div class="flash-messages-container">
-            {% if page != 'aws-s3' %}
-            {% for message in get_flashed_messages(with_categories=True) %}
-            {% set category = message[0] %}
-            {% set msg_text = message[1] %}
-            {% set icon_class = 'fa-info-circle' %}
-
-            {% if category == 'error' or category == 'danger' %}
-            {% set category = 'error' %}
-            {% set icon_class = 'fa-exclamation-circle' %}
-            {% elif category == 'warning' %}
-            {% set icon_class = 'fa-exclamation-triangle' %}
-            {% elif category == 'success' %}
-            {% set icon_class = 'fa-check-circle' %}
-            {% endif %}
-
-            <div class="flash-message {{ category }}">
-              <i class="fas {{ icon_class }} flash-icon"></i>
-              <div class="flash-content">{{ msg_text }}</div>
-              <button class="flash-close" onclick="this.parentElement.style.display='none'"><i
-                  class="fas fa-times"></i></button>
-              <div class="flash-progress"></div>
-            </div>
-            {% endfor %}
-            {% endif %}
-          </div>
+      {% include 'flashmanager.html' %}
       <div class="right-side-container">
         {% block body %}{% endblock %}
         {% if pagination and (pagination.has_next or pagination.has_prev) %}

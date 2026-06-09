@@ -7,12 +7,9 @@
 {% block body %}
 <div class="aws-s3-page">
     <div class="section-heading">
-        <div class="heading-icon">
-            <span class="icon icon-cloud"></span>
-        </div>
-        <div style="flex-grow: 1;">
-            <h3>{{_('AWS S3 Integration')}}</h3>
-            <small>{{_('Securely connect and manage your Amazon S3 storage')}}</small>
+        <div style="flex-grow: 1;margin-left: 38px;">
+            <h2 style="font-weight: 800;color: rgb(25, 23, 23);">{{_('Edit AWS S3 Settings')}}</h2>
+            <small style="color: rgb(24, 22, 22);">{{_('Securely connect and manage your Amazon S3 storage')}}</small>
         </div>
         <div class="aws-toggle-wrapper">
             <label class="aws-switch">
@@ -26,7 +23,7 @@
     <div class="aws-content-relative">
         <!-- Glass Mirror Overlay (Disabled State) -->
         <div id="aws-disabled-overlay" class="aws-glass-mirror">
-                <div class="glass-content">
+            <div class="glass-content">
                 <div class="glass-icon"><span class="icon icon-lock"></span></div>
                 <h2>{{_('AWS S3 Service Paused')}}</h2>
                 <p>{{_('Enable the service using the toggle above to access cloud storage.')}}</p>
@@ -40,258 +37,243 @@
         </div>
 
         <div class="content-row" id="aws-main-content">
-        <!-- Left Column: Credentials -->
-        <div class="col col-6">
-            <!-- Stored Credentials Panel -->
-            {% if credential %}
-            <div class="panel">
-                <div class="panel-heading">
-                    <h3 class="panel-title">
-                        <span class="icon icon-lock text-primary"></span> {{_('Active Configuration')}}
-                        <div class="align-right">
-                            <span class="aws-badge aws-badge-success">
-                                <span class="icon icon-ok"></span> {{_('Verified')}}
-                            </span>
-                        </div>
-                    </h3>
+            <!-- Left Column: Credentials -->
+            <div class="col col-6">
+                {% if credential %}
+                <div class="alert alert-info"
+                    style="border-radius: 12px; border: 1px dashed #2dff00; background: rgba(17, 255, 0, 0.3);width: 90%;margin-left: 5%;">
+                    <span class="icon icon-check"></span>
+                    <strong>{{_('AWS S3 Connected')}}</strong>. {{_('Your credentials are configured. You can manage
+                    your storage and files using the options below.')}}
                 </div>
-                <div class="panel-body">
-                    <table class="cred-info-table">
-                        <tr>
-                            <td>{{_('Access Key ID')}}</td>
-                            <td><code>{{ credential.aws_access_key_id_masked }}</code></td>
-                        </tr>
-                        <tr>
-                            <td>{{_('Region')}}</td>
-                            <td><span class="tag tag-info">{{ credential.default_region }}</span></td>
-                        </tr>
-                        <tr>
-                            <td>{{_('Bucket Name')}}</td>
-                            <td><span class="text-primary" style="font-weight:600">{{ credential.bucket_name }}</span></td>
-                        </tr>
-                        <tr>
-                            <td>{{_('Output Format')}}</td>
-                            <td><code>{{ credential.default_output_format }}</code></td>
-                        </tr>
-                        <tr>
-                            <td>{{_('Sync Status')}}</td>
-                            <td><span class="text-muted" style="font-size:0.85rem">{{_('Updated:')}} {{ credential.updated_at }}</span></td>
-                        </tr>
-                    </table>
-
-                    <div class="btn-toolbar" style="margin-top: 10px;">
-                        <a class="btn btn-default" href="#aws-cred-form">
-                            <span class="icon icon-edit"></span> {{_('Modify')}}
-                        </a>
-                        <form method="POST" action="/admin/aws-s3/test-connection" style="display:inline-block; margin:0;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-default" type="submit">
-                                <span class="icon icon-transfer"></span> {{_('Check Connectivity')}}
-                            </button>
-                        </form>
-                        <form method="POST" action="/admin/aws-s3/disconnect" style="display:inline-block; margin:0;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="_method" value="DELETE">
-                            <input type="hidden" name="id" value="{{ credential.id }}">
-                            <button class="btn btn-default" type="submit">
-                                <span class="icon icon-flash"></span> {{_('Disconnect')}}
-                            </button>
-                        </form>
-                        <form method="POST" action="/admin/aws-s3/credentials/{{ credential.id }}" style="display:inline-block; margin:0;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="_method" value="DELETE">
-                            <button class="btn btn-danger align-right" type="submit">
-                                <span class="icon icon-trash"></span> {{_('Remove')}}
-                            </button>
-                        </form>
-                    </div>
-                    <div id="aws-stored-status" class="aws-status-box">
-                        {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, msg in messages %}
-                                <div class="flash-message {{ category }}" style="margin:0 0 8px 0;">
-                                    <div class="flash-content">{{ msg }}</div>
-                                    <button class="flash-close" onclick="this.parentElement.style.display='none'">✕</button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                        {% endwith %}
-                    </div>
+                {% else %}
+                <div class="alert alert-warning"
+                    style="border-radius: 12px;border: 1px dashed #FF9900;background: rgba(255,153,0,0.05);width: 90%;margin-left: 5%;">
+                    <span class="icon icon-info"></span>
+                    <strong>{{_('No S3 Storage Configured')}}</strong>. {{_('Please add your AWS credentials to enable
+                    cloud storage features.')}}
                 </div>
-            </div>
-            {% else %}
-            <div class="alert alert-warning" style="border-radius: 12px; border: 1px dashed #FF9900; background: rgba(255,153,0,0.05);">
-                <span class="icon icon-info"></span> 
-                <strong>{{_('No S3 Storage Configured')}}</strong>. {{_('Please add your AWS credentials to enable cloud storage features.')}}
-            </div>
-            {% endif %}
 
-            <!-- Credential Form Panel -->
-            <div class="panel" id="aws-cred-form-card">
-                <div class="panel-heading">
-                    <h3 class="panel-title">
-                        <span class="icon icon-wrench text-primary"></span> 
-                        Edit AWS S3 Settings
-                    </h3>
-                </div>
-                <div class="panel-body">
-                    <form id="aws-cred-form" method="POST" action="/admin/aws-s3/credentials">
-                        {% if credential %}
-                        <input type="hidden" name="_method" value="PUT">
-                        {% endif %}
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="form-group required">
-                                    <label class="control-label" for="aws_access_key_id">{{_('Access Key ID')}}</label>
-                                    <input class="form-control" type="text" id="aws_access_key_id" name="aws_access_key_id" placeholder="AKIA..." autocomplete="off" {% if credential %}value="{{ credential.aws_access_key_id }}"{% endif %} required>
-                                    <p class="aws-form-hint">{{_('Your 20-character identifier')}}</p>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group required">
-                                    <label class="control-label" for="aws_secret_access_key">{{_('Secret Access Key')}}</label>
-                                    <input class="form-control" type="password" id="aws_secret_access_key" name="aws_secret_access_key"  autocomplete="new-password" required>
-                                    <p class="aws-form-hint">{{_('Encrypted at rest')}}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-sm-12">
-                                <div class="form-group required">
-                                    <label class="control-label" for="aws_default_region">{{_('Region')}}</label>
-                                    <select class="form-control" id="aws_default_region" name="default_region">
-                                        <option value="">{{_('Select AWS Region')}}</option>
-                                        {% for r in regions %}
-                                        <option value="{{ r }}" {% if credential and credential.default_region == r %}selected{% endif %}>{{ r }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group">
-                                    <label class="control-label" for="aws_default_output_format">{{_('Format')}}</label>
-                                    <select class="form-control" id="aws_default_output_format" name="default_output_format">
-                                        {% for f in output_formats %}
-                                        <option value="{{ f }}" {% if credential and credential.default_output_format == f %}selected{% elif f == 'json' and not credential %}selected{% endif %}>{{ f }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group required">
-                            <label class="control-label" for="aws_bucket_name">{{_('Bucket Name')}}</label>
-                            <input class="form-control" type="text" id="aws_bucket_name" name="bucket_name" placeholder="my-app-storage" {% if credential %}value="{{ credential.bucket_name }}"{% endif %}>
-                        </div>
-
-                        <div class="btn-toolbar">
-                            <button class="btn btn-primary" id="btn-aws-save" type="submit">
-                                <span class="icon icon-save"></span> {% if credential %}{{_('Update Credentials')}}{% else %}{{_('Save & Activate')}}{% endif %}
-                            </button>
-                            {% if not credential %}
-                            <button class="btn btn-default" id="btn-aws-test" type="submit" formaction="/admin/aws-s3/test-connection"> 
-                                <span class="icon icon-transfer"></span> {{_('Test Connection')}}
-                            </button>
-                            {% endif %}
+                {% endif %}
+                <!-- Credential Form Panel -->
+                <div class="panel" id="aws-cred-form-card">
+                    <div class="panel-body">
+                        <form id="aws-cred-form" role="form" method="POST"
+                            action="{% if credential %}/admin/aws-s3/credentials/{{ credential.id }}{% else %}/admin/aws-s3/credentials{% endif %}">
                             {% if credential %}
-                            <a class="btn btn-link" href="#">{{_('Cancel')}}</a>
+                            <input type="hidden" name="_method" value="PUT">
                             {% endif %}
-                        </div>
-                    </form>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="form-group required">
+                                        <label class="control-label" for="aws_access_key_id">{{_('Access Key
+                                            ID')}}</label>
+                                        <input class="form-control" type="text" id="aws_access_key_id"
+                                            name="aws_access_key_id" placeholder="AKIA..." autocomplete="off" {% if credential %}value="{{ credential.aws_access_key_id }}"
+                                    {% endif %} required>
+                                        <p class="aws-form-hint">{{_('Your 20-character identifier')}}</p>
+                                    </div>
+                                </div>
+                                <div class="col-sm-12">
+                                    <div class="form-group required">
+                                        <label class="control-label" for="aws_secret_access_key">{{_('Secret Access
+                                            Key')}}</label>
+                                        <input class="form-control" type="password" id="aws_secret_access_key"
+                                            name="aws_secret_access_key" autocomplete="new-password">
+                                        <p class="aws-form-hint">{{_('Encrypted at rest')}}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="form-group required">
+                                        <label class="control-label" for="aws_default_region">{{_('Region')}}</label>
+                                        <select class="form-control" id="aws_default_region" name="default_region">
+                                            <option value="">{{_('Select AWS Region')}}</option>
+                                            {% for r in regions %}
+                                            <option value="{{ r }}" {% if credential and credential.default_region==r
+                                                %}selected{% endif %}>{{ r }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-sm-12">
+                                    <div class="form-group">
+                                        <label class="control-label"
+                                            for="aws_default_output_format">{{_('Format')}}</label>
+                                        <select class="form-control" id="aws_default_output_format"
+                                            name="default_output_format">
+                                            {% for f in output_formats %}
+                                            <option value="{{ f }}" {% if credential and
+                                                credential.default_output_format==f %}selected{% elif f=='json' and not
+                                                credential %}selected{% endif %}>{{ f }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group required">
+                                <label class="control-label" for="aws_bucket_name">{{_('Bucket Name')}}</label>
+                                <input class="form-control" type="text" id="aws_bucket_name" name="bucket_name"
+                                    placeholder="my-app-storage" {% if credential %}value="{{ credential.bucket_name }}"
+                                    {% endif %}>
+                            </div>
+
+                            <div class="btn-toolbar">
+                                {% if credential %}
+                                <button type="button" class="btn btn-danger" id="btn-aws-remove">
+                                    <span class="icon icon-trash"></span> {{_('Remove')}}
+                                </button>
+                                {% endif %}
+                                <button type="submit" name="submit" value="submit" class="btn btn-primary"
+                                    id="btn-aws-save">
+                                    <span class="icon icon-save"></span>
+                                    {% if credential %}{{_('Update Credentials')}}{% else %}{{_('Save &
+                                    Activate')}}{% endif %}
+                                </button>
+
+                                <button type="submit" name="test" value="test" class="btn btn-default" id="btn-aws-test"
+                                    formaction="/admin/aws-s3/test-connection">
+                                    <span class="icon icon-transfer"></span>
+                                    {% if credential %}{{_('Test Connection')}}{% else %}{{_('Save and Test
+                                    Connection')}}{% endif %}
+                                </button>
+                            </div>
+                        </form>
+
+                        {% if credential %}
+                        <form id="aws-delete-form" method="POST" action="/admin/aws-s3/credentials/{{ credential.id }}"
+                            style="display:none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="_method" value="DELETE">
+                        </form>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                var btn = document.getElementById('btn-aws-remove');
+                                if (btn) {
+                                    btn.addEventListener('click', function (e) {
+                                        if (confirm('Are you sure you want to remove the stored AWS credentials ? ')){
+                                            document.getElementById('aws-delete-form').submit();
+                                        }
+                                    });
+                                }
+                            });
+                        </script>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Right Column: Operations -->
-        <div class="col col-6">
-            {% if credential %}
-            <!-- Browser Panel -->
-            <div class="panel">
-                <div class="panel-heading">
-                    <h3 class="panel-title">
+            <!-- Right Column: Operations -->
+            <div class="col col-6">
+                <!-- Browser Panel -->
+                <div class="panel">
+                    {% if credential %}
+
+                    <div class="panel-heading">
                         <span class="icon icon-list text-primary"></span> {{_('Storage Explorer')}}
                         <div class="align-right">
-                            <a class="btn btn-default btn-xs" href="/admin/aws-s3/files?load=1" title="{{_('Refresh')}}">
-                                <span class="icon icon-refresh"></span>
+                            <a class="btn btn-default btn-xs" href="/admin/aws-s3/files?load=1"
+                                title="{{_('Refresh')}}">
+                                <span style="font-size: 12px;">Refresh</span>
                             </a>
                         </div>
-                    </h3>
-                </div>
-                <div class="panel-body" style="padding: 15px;">
-                    <!-- Upload form (server-handled) -->
-                    <form method="POST" action="/admin/aws-s3/upload" enctype="multipart/form-data" style="margin-bottom:12px;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <label class="btn btn-default">
-                            <span class="icon icon-open-file"></span> {{_('Choose File')}}
-                            <input type="file" name="file" style="display:none">
-                        </label>
-                        <button class="btn btn-primary" type="submit">{{_('Upload to S3')}}</button>
-                    </form>
+                    </div>
+                    {% endif %}
 
-                    <!-- Prefix filter (server GET) -->
-                    <form method="GET" action="/admin/aws-s3/files" style="margin-bottom: 15px; display:flex; gap:8px;">
-                        <span class="input-addon"><span class="icon icon-folder"></span></span>
-                        <input type="text" name="prefix" value="{{ prefix if prefix is defined else '' }}" class="form-control" placeholder="{{_('Search prefix (e.g. docs/)')}}">
-                        <button class="btn btn-default" type="submit">{{_('Filter')}}</button>
-                    </form>
-
-                    <div id="aws-file-browser" style="min-height: 250px;">
-                        {% if files is defined and files %}
+                    <div class="panel-body" style="padding: 15px; position: relative;">
+                        {% if not credential %}
+                        <div class="aws-panel-overlay"
+                            style="position:absolute; inset:0; background: rgba(255,255,255,0.8); z-index:6; display:flex; align-items:center; justify-content:center;">
+                            <div style="text-align:center; max-width:320px;">
+                                <div style="font-size:28px; margin-bottom:8px;"><span class="icon icon-lock"></span>
+                                </div>
+                                <h4 style="margin:0 0 8px 0;">{{_('Storage Explorer Paused')}}</h4>
+                                <p style="color:#666; margin-bottom:12px;">{{_('Configure AWS credentials to enable file
+                                    browsing and uploads.')}}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div id="aws-file-browser" style="min-height: 250px;">
+                            {% if files is defined and files %}
                             <table id="aws-file-table">
                                 <thead>
-                                    <tr><th>Key / Path</th><th>Size</th><th>Last Modified</th><th>Actions</th></tr>
+                                    <tr>
+                                        <th>Key / Path</th>
+                                        <th>Size</th>
+                                        <th>Last Modified</th>
+                                        <th>Actions</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                {% for f in files %}
+                                    {% set ns = namespace(seen=[]) %}
+                                    {% for f in files %}
+                                    {% if '/' in f.key %}
+                                    {% set first = (f.key.split('/')|first) ~ '/' %}
+                                    {% if first not in ns.seen %}
+                                    {% set _ = ns.seen.append(first) %}
+                                    <tr class="folder-row">
+                                        <td class="key-col"><span class="icon icon-folder"></span> <a
+                                                href="/admin/aws-s3/files?prefix={{ first }}">{{ first }}</a></td>
+                                        <td class="size-col">-</td>
+                                        <td class="text-muted" style="font-size:0.82rem;">-</td>
+                                        <td>
+                                            <a class="btn btn-default btn-xs"
+                                                href="/admin/aws-s3/files?prefix={{ first }}" title="Open">
+                                                <span class="icon icon-folder-open"></span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% else %}
                                     <tr>
                                         <td class="key-col" title="{{ f.key }}">{{ f.key }}</td>
                                         <td class="size-col">{{ f.size_human }}</td>
                                         <td class="text-muted" style="font-size:0.82rem;">{{ f.last_modified }}</td>
                                         <td>
-                                            <a href="{{ f.url }}" target="_blank" class="btn btn-default btn-xs" title="Open">
+                                            <a href="{{ f.url }}" target="_blank" class="btn btn-default btn-xs"
+                                                title="Open">
                                                 <span class="icon icon-new-window"></span>
                                             </a>
-                                            <form method="POST" action="/admin/aws-s3/files" style="display:inline-block; margin:0;">
+                                            <form method="POST" action="/admin/aws-s3/files"
+                                                style="display:inline-block; margin:0;">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <input type="hidden" name="_method" value="DELETE">
                                                 <input type="hidden" name="key" value="{{ f.key }}">
-                                                <button class="btn btn-xs btn-danger" type="submit" title="Delete"> <span class="icon icon-trash"></span></button>
+                                                <button class="btn btn-xs btn-danger" type="submit" title="Delete">
+                                                    <span class="icon icon-trash"></span></button>
                                             </form>
                                         </td>
                                     </tr>
-                                {% endfor %}
+                                    {% endif %}
+                                    {% endfor %}
                                 </tbody>
                             </table>
                             {% if truncated %}
-                                <p class="text-muted" style="font-size:0.8rem;">Results truncated — refine your prefix filter to see more.</p>
+                            <p class="text-muted" style="font-size:0.8rem;">Results truncated — refine your prefix
+                                filter to see more.</p>
                             {% endif %}
-                        {% else %}
+                            {% else %}
+                            {% if credential %}
                             <div class="text-center" style="padding-top: 50px; color: #bbb;">
-                                <span class="icon icon-search" style="font-size: 30px; display: block; margin-bottom: 10px;"></span>
+                                <span class="icon icon-search"
+                                    style="font-size: 30px; display: block; margin-bottom: 10px;"></span>
                                 <p>{{_('Load files to explore bucket content')}}</p>
-                                <a class="btn btn-default btn-sm" href="/admin/aws-s3/files?load=1">{{_('Load Files')}}</a>
+                                <a class="btn btn-default btn-sm" href="/admin/aws-s3/files?load=1">{{_('Load
+                                    Files')}}</a>
                             </div>
-                        {% endif %}
+                            {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-            {% else %}
-            <!-- Placeholder for Operations when not configured -->
-            <div class="panel" style="opacity: 0.5;">
-                <div class="panel-heading">
-                    <h3 class="panel-title"><span class="icon icon-lock"></span> {{_('Storage Explorer')}}</h3>
-                </div>
-                <div class="panel-body text-center" style="padding: 60px 20px;">
-                    <span class="icon icon-cloud-download" style="font-size: 48px; color: #ddd;"></span>
-                    <p style="margin-top: 15px; color: #999;">{{_('File management will be available after AWS configuration.')}}</p>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
+</div>
 </div>
 
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

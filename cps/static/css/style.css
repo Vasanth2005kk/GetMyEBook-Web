@@ -379,7 +379,7 @@ span.glyphicon.glyphicon-tags {
 .btn-primary:active,
 .btn-primary.active,
 .open .dropdown-toggle.btn-primary {
-  background-color: #1c5484;
+  background-color: #0746b3;
 }
 
 .btn-primary.disabled,
@@ -433,7 +433,7 @@ table .bg-dark-danger:hover {
 }
 
 table .bg-primary:hover {
-  background-color: #1c5484;
+  background-color: #0746b3;
 }
 
 .block-label {
@@ -667,7 +667,7 @@ body {
 }
 
 .feature-title a {
-  color: #1c5484;
+  color: #0746b3;
   text-decoration: none;
   transition: color 0.3s ease;
 }

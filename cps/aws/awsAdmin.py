@@ -88,7 +88,7 @@ def aws_s3_page():
     if record:
         credential = {
             "id": record.id,
-            "aws_access_key_id_masked": "****" + (record._masked_key() or ""),
+            "aws_access_key_id": "*****" + (record.aws_access_key_id[-4:] if record.aws_access_key_id else ""),
             "default_region": record.default_region,
             "default_output_format": record.default_output_format,
             "bucket_name": record.bucket_name,
@@ -137,7 +137,7 @@ def add_credentials():
 
     try:
         record = AWSCredentials(
-            aws_access_key_id=encrypt_value(data["aws_access_key_id"].strip()),
+            aws_access_key_id=data["aws_access_key_id"].strip(),
             aws_secret_access_key=encrypt_value(data["aws_secret_access_key"].strip()),
             default_region=data["default_region"].strip(),
             default_output_format=data.get("default_output_format", "json").strip() or "json",
@@ -229,7 +229,8 @@ def delete_credentials(cred_id):
         ub.session.delete(record)
         ub.session.commit()
         log.info(f"AWS credentials deleted (id={cred_id}) by user '{current_user.name}'")
-        return jsonify({"success": True, "message": "AWS credentials deleted successfully."})
+        flash("AWS credentials deleted successfully.", "success")
+        return redirect(url_for('aws_s3.aws_s3_page'))
     except Exception as e:
         ub.session.rollback()
         log.error(f"Failed to delete AWS credentials: {e}")

@@ -1,0 +1,35 @@
+{# Centralized flash message renderer - used by layout.html #}
+{# Uses get_flashed_messages(with_categories=True) and maps categories to visual styles #}
+{% set flashed = get_flashed_messages(with_categories=True) %}
+{% if flashed %}
+  <div class="flash-messages-container">
+    {% for category, msg_text in flashed %}
+      {% set raw = category|lower %}
+      {% if raw == 'error' or raw == 'danger' %}
+        {% set display_cat = 'danger' %}
+      {% elif raw == 'warning' %}
+        {% set display_cat = 'warning' %}
+      {% elif raw == 'success' %}
+        {% set display_cat = 'success' %}
+      {% else %}
+        {% set display_cat = 'info' %}
+      {% endif %}
+
+      {% set icon_class = 'fa-info-circle' %}
+      {% if display_cat == 'danger' %}
+        {% set icon_class = 'fa-exclamation-circle' %}
+      {% elif display_cat == 'warning' %}
+        {% set icon_class = 'fa-exclamation-triangle' %}
+      {% elif display_cat == 'success' %}
+        {% set icon_class = 'fa-check-circle' %}
+      {% endif %}
+
+      <div class="flash-message {{ display_cat }}">
+        <i class="fas {{ icon_class }} flash-icon"></i>
+        <div class="flash-content">{{ msg_text }}</div>
+        <button class="flash-close" onclick="this.parentElement.style.display='none'"><i class="fas fa-times"></i></button>
+        <div class="flash-progress"></div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
