@@ -19,7 +19,6 @@ from .awsS3 import (
     decrypt_value,
     validate_credentials_payload,
     test_s3_connection,
-    upload_file_to_s3,
     list_bucket_files,
     delete_bucket_file,
     VALID_AWS_REGIONS,
@@ -66,9 +65,12 @@ def _get_creds_record():
 
 
 def _get_plain_creds(record: AWSCredentials):
-    """Return a dict with decrypted plain-text credentials from a DB record."""
+    """Return a dict with credentials from a DB record.
+    NOTE: aws_access_key_id is stored as plain text;
+          aws_secret_access_key is AES-GCM encrypted.
+    """
     return {
-        "access_key": decrypt_value(record.aws_access_key_id),
+        "access_key": record.aws_access_key_id,
         "secret_key": decrypt_value(record.aws_secret_access_key),
         "region": record.default_region,
         "bucket": record.bucket_name,
@@ -178,7 +180,7 @@ def update_credentials(cred_id):
 
     # Build a merged dict to run full validation
     merged = {
-        "aws_access_key_id": decrypt_value(record.aws_access_key_id),
+        "aws_access_key_id": record.aws_access_key_id,
         "aws_secret_access_key": decrypt_value(record.aws_secret_access_key),
         "default_region": record.default_region,
         "default_output_format": record.default_output_format,
@@ -193,8 +195,9 @@ def update_credentials(cred_id):
         return jsonify({"success": False, "message": error}), 400
 
     try:
+        # aws_access_key_id is stored as plain text (not encrypted)
         if "aws_access_key_id" in data and data["aws_access_key_id"].strip():
-            record.aws_access_key_id = encrypt_value(data["aws_access_key_id"].strip())
+            record.aws_access_key_id = data["aws_access_key_id"].strip()
         if "aws_secret_access_key" in data and data["aws_secret_access_key"].strip():
             record.aws_secret_access_key = encrypt_value(data["aws_secret_access_key"].strip())
         if "default_region" in data and data["default_region"].strip():
@@ -248,7 +251,9 @@ def test_connection():
     POST /admin/aws-s3/test-connection
     Body can contain credentials directly (for first-save test) OR be empty
     (uses stored credentials).
+    Accepts both JSON (AJAX) and HTML form submissions.
     """
+    is_ajax = request.is_json or request.headers.get('X-CSRFToken')
     data = request.get_json(silent=True) or {}
     if not data and request.form:
         data = request.form.to_dict()
@@ -258,10 +263,13 @@ def test_connection():
     secret_key = data.get("aws_secret_access_key", "").strip()
     region = data.get("default_region", "").strip()
     bucket_name = data.get("bucket_name", "").strip()
-    log.info(f"Testing AWS connection with provided credentials (access_key={'****' + access_key[-4:] if access_key else None}, region={region}, bucket={bucket_name})")
+    log.info(f"Testing AWS connection (access_key={'****' + access_key[-4:] if access_key else 'from-store'}, region={region or 'from-store'}, bucket={bucket_name or 'from-store'})")
+
     if not (access_key and secret_key and region and bucket_name):
         record = _get_creds_record()
         if not record:
+            if is_ajax:
+                return jsonify({"success": False, "message": "No credentials provided or stored for testing connection."}), 400
             flash("No credentials provided or stored for testing connection.", "error")
             return redirect(url_for('aws_s3.aws_s3_page'))
         creds = _get_plain_creds(record)
@@ -271,53 +279,21 @@ def test_connection():
         bucket_name = bucket_name or creds["bucket"]
 
     if not (access_key and secret_key and region and bucket_name):
-        return jsonify({"success": False, "message": "Incomplete credentials for connection test."}), 400
+        if is_ajax:
+            return jsonify({"success": False, "message": "Incomplete credentials for connection test."}), 400
+        flash("Incomplete credentials for connection test.", "error")
+        return redirect(url_for('aws_s3.aws_s3_page'))
 
     result = test_s3_connection(access_key, secret_key, region, bucket_name)
     status = 200 if result["success"] else 400
-    if request.is_json:
+    if is_ajax:
         return jsonify(result), status
     # HTML form result — flash and redirect back to UI
     flash(result.get('message', 'Connection test completed.'), 'success' if result.get('success') else 'error')
     return redirect(url_for('aws_s3.aws_s3_page'))
 
 
-# ---------------------------------------------------------------------------
-# API – Upload file
-# ---------------------------------------------------------------------------
 
-@aws_s3.route("/admin/aws-s3/upload", methods=["POST"])
-@admin_required
-def upload_file():
-    """
-    POST /admin/aws-s3/upload  (multipart/form-data)
-    Form fields: file (required), s3_key (optional – defaults to original filename)
-    """
-    record = _get_creds_record()
-    if not record:
-        return jsonify({"success": False, "message": "AWS credentials not configured."}), 400
-
-    if "file" not in request.files:
-        return jsonify({"success": False, "message": "No file part in the request."}), 400
-
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"success": False, "message": "No file selected."}), 400
-
-    s3_key = request.form.get("s3_key", "").strip() or file.filename
-    content_type = file.content_type or "application/octet-stream"
-
-    creds = _get_plain_creds(record)
-    result = upload_file_to_s3(
-        creds["access_key"], creds["secret_key"],
-        creds["region"], creds["bucket"],
-        file.stream, s3_key, content_type,
-    )
-    status = 200 if result["success"] else 500
-    if request.is_json:
-        return jsonify(result), status
-    flash(result.get('message', 'Upload finished.'), 'success' if result.get('success') else 'error')
-    return redirect(url_for('aws_s3.aws_s3_page'))
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +305,8 @@ def upload_file():
 def list_files():
     """
     GET /admin/aws-s3/files?prefix=<optional>&max_keys=<optional>
+    AJAX callers (X-CSRFToken header or Accept: application/json) receive JSON.
+    Browser navigations receive a full page render.
     """
     record = _get_creds_record()
     if not record:
@@ -348,29 +326,55 @@ def list_files():
         prefix, max_keys,
     )
     status = 200 if result["success"] else 500
-    if request.is_json:
+
+    # AJAX / JSON request – return raw JSON
+    is_ajax = request.is_json or request.headers.get('X-CSRFToken') or \
+              'application/json' in request.headers.get('Accept', '')
+    if is_ajax:
         return jsonify(result), status
-    # Server-side render: convert file sizes and pass to template
+
+    # Server-side render: normalise file list for template
     files = []
     if result.get('files'):
         for f in result['files']:
+            size_raw = f.get('size', f.get('Size', 0))
+            # Human-readable size
+            size_human = f.get('SizeHuman', '')
+            if not size_human:
+                try:
+                    b = int(size_raw)
+                    if b < 1024:
+                        size_human = f"{b} B"
+                    elif b < 1048576:
+                        size_human = f"{b/1024:.1f} KB"
+                    else:
+                        size_human = f"{b/1048576:.1f} MB"
+                except (ValueError, TypeError):
+                    size_human = str(size_raw)
             files.append({
-                'key': f.get('Key'),
-                'size_human': f.get('SizeHuman', str(f.get('Size', ''))),
-                'last_modified': f.get('LastModified', ''),
-                'url': f.get('Url', '#'),
+                'key': f.get('key', f.get('Key', '')),
+                'size_human': size_human,
+                'last_modified': f.get('last_modified', f.get('LastModified', '')),
+                'url': f.get('url', f.get('Url', '#')),
             })
+
+    # Build credential dict for template (re-fetch to get fresh record)
+    cred_record = _get_creds_record()
+    credential = None
+    if cred_record:
+        credential = {
+            'id': cred_record.id,
+            'aws_access_key_id': '****' + (cred_record._masked_key() or ''),
+            'default_region': cred_record.default_region,
+            'default_output_format': cred_record.default_output_format,
+            'bucket_name': cred_record.bucket_name,
+            'created_at': cred_record.created_at.strftime('%Y-%m-%d %H:%M UTC') if cred_record.created_at else '',
+            'updated_at': cred_record.updated_at.strftime('%Y-%m-%d %H:%M UTC') if cred_record.updated_at else '',
+        }
+
     return render_template(
         'awsAdminPanel.html',
-        credential=(lambda r=_get_creds_record(): {
-            'id': r.id,
-            'aws_access_key_id_masked': '****' + (r._masked_key() or ''),
-            'default_region': r.default_region,
-            'default_output_format': r.default_output_format,
-            'bucket_name': r.bucket_name,
-            'created_at': r.created_at.strftime('%Y-%m-%d %H:%M UTC') if r.created_at else '',
-            'updated_at': r.updated_at.strftime('%Y-%m-%d %H:%M UTC') if r.updated_at else '',
-        } if _get_creds_record() else None),
+        credential=credential,
         regions=VALID_AWS_REGIONS,
         output_formats=VALID_OUTPUT_FORMATS,
         title='AWS S3 Configuration',
@@ -436,8 +440,9 @@ def credentials_post(cred_id):
             flash('Credentials record not found.', 'error')
             return redirect(url_for('aws_s3.aws_s3_page'))
         # Build merged dict for validation
+        # aws_access_key_id is stored as plain text; aws_secret_access_key is encrypted
         merged = {
-            'aws_access_key_id': decrypt_value(record.aws_access_key_id),
+            'aws_access_key_id': record.aws_access_key_id,
             'aws_secret_access_key': decrypt_value(record.aws_secret_access_key),
             'default_region': record.default_region,
             'default_output_format': record.default_output_format,
@@ -451,8 +456,9 @@ def credentials_post(cred_id):
             flash(error, 'error')
             return redirect(url_for('aws_s3.aws_s3_page'))
         try:
+            # aws_access_key_id stored as plain text
             if 'aws_access_key_id' in data and str(data['aws_access_key_id']).strip():
-                record.aws_access_key_id = encrypt_value(str(data['aws_access_key_id']).strip())
+                record.aws_access_key_id = str(data['aws_access_key_id']).strip()
             if 'aws_secret_access_key' in data and str(data['aws_secret_access_key']).strip():
                 record.aws_secret_access_key = encrypt_value(str(data['aws_secret_access_key']).strip())
             if 'default_region' in data and str(data['default_region']).strip():
@@ -484,23 +490,32 @@ def files_post():
     return redirect(url_for('aws_s3.aws_s3_page'))
 
 
-@aws_s3.route('/admin/aws-s3/disconnect', methods=['POST'])
+@aws_s3.route('/admin/aws-s3/disconnect', methods=['POST', 'DELETE'])
 @admin_required
 def disconnect_post():
-    """Form-based disconnect endpoint (supports method override to DELETE)."""
-    method = request.form.get('_method', '').upper()
-    # call same logic as a DELETE would
+    """
+    Disconnect / remove all stored AWS credentials.
+    - POST with _method=DELETE  → HTML form fallback (browser forms)
+    - DELETE (AJAX)             → JSON response for awsDisconnect() JS
+    """
+    is_ajax = request.method == 'DELETE' or request.is_json or request.headers.get('X-CSRFToken')
     try:
-        # For now, simply delete the stored credentials row (disconnect)
         record = _get_creds_record()
         if record:
             ub.session.delete(record)
             ub.session.commit()
-            flash('AWS disconnected.', 'success')
+            log.info(f"AWS credentials disconnected by user '{current_user.name}'")
+            if is_ajax:
+                return jsonify({"success": True, "message": "AWS disconnected successfully."}), 200
+            flash('AWS disconnected successfully.', 'success')
         else:
+            if is_ajax:
+                return jsonify({"success": False, "message": "No AWS credentials configured."}), 404
             flash('No AWS credentials configured.', 'error')
     except Exception as e:
         ub.session.rollback()
         log.error(f'Failed to disconnect AWS: {e}')
+        if is_ajax:
+            return jsonify({"success": False, "message": "Failed to disconnect AWS."}), 500
         flash('Failed to disconnect AWS.', 'error')
     return redirect(url_for('aws_s3.aws_s3_page'))

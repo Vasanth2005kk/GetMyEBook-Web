@@ -7,7 +7,6 @@
     'use strict';
 
     /* ── State ─────────────────────────────────────────────── */
-    var selectedFile = null;
     var CRED_ID = window.AWS_CRED_ID || null;
 
     /* ── Utility: CSRF token ────────────────────────────────── */
@@ -205,115 +204,93 @@
         });
     };
 
-    /* ── File selection / drag-drop ─────────────────────────── */
-    window.awsHandleFileSelect = function (files) {
-        if (!files || !files.length) return;
-        selectedFile = files[0];
-        $('#aws-selected-file')
-            .text('📄 ' + selectedFile.name + '  (' + fmtBytes(selectedFile.size) + ')')
-            .addClass('show');
-        $('#btn-aws-upload').show();
-    };
 
-    window.awsHandleDrop = function (e) {
-        e.preventDefault();
-        $('#aws-drop-zone').removeClass('drag-over');
-        awsHandleFileSelect(e.dataTransfer.files);
-    };
-
-    /* ── Upload ─────────────────────────────────────────────── */
-    window.awsUploadFile = function () {
-        if (!selectedFile) return;
-        var $btn = $('#btn-aws-upload');
-        btnLoading($btn, 'Uploading…');
-        hideStatus('aws-upload-status');
-
-        var $pw = $('#aws-progress-wrap');
-        var $pb = $('#aws-progress-bar');
-        $pw.addClass('show');
-
-        var pct = 0;
-        var iv = setInterval(function () {
-            pct = Math.min(pct + 8, 85);
-            $pb.css('width', pct + '%');
-        }, 200);
-
-        var fd = new FormData();
-        fd.append('file', selectedFile);
-
-        $.ajax({
-            url: '/admin/aws-s3/upload',
-            method: 'POST',
-            headers: { 'X-CSRFToken': getCsrf() },
-            data: fd,
-            processData: false,
-            contentType: false,
-            success: function (res) {
-                clearInterval(iv);
-                $pb.css('width', '100%');
-                var msg = res.message + (res.url ? '  —  ' + res.url : '');
-                showStatus('aws-upload-status', true, msg);
-                selectedFile = null;
-                $('#aws-selected-file').removeClass('show').text('');
-                $('#btn-aws-upload').hide();
-                setTimeout(awsLoadFiles, 800);
-            },
-            error: function (xhr) {
-                clearInterval(iv);
-                $pw.removeClass('show');
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Upload failed.';
-                showStatus('aws-upload-status', false, msg);
-                btnReset($btn);
-            }
-        });
-    };
-
-    /* ── Load / render file list ────────────────────────────── */
     window.awsLoadFiles = function () {
         var prefix = $('#aws-prefix-filter').val() || '';
         var $container = $('#aws-file-browser');
         $container.html('<p class="text-muted"><span class="aws-spinner"></span> Loading files…</p>');
 
-        $.get('/admin/aws-s3/files', { prefix: prefix, max_keys: 100 }, function (res) {
-            if (!res.success) {
-                $container.html('<p class="text-danger"><span class="icon icon-exclamation"></span> ' + esc(res.message) + '</p>');
-                return;
-            }
-            if (!res.files.length) {
-                $container.html('<p class="text-muted">No files found' + (prefix ? ' for prefix "' + esc(prefix) + '"' : '') + '.</p>');
-                return;
-            }
-            var rows = res.files.map(function (f) {
-                var mod = f.last_modified.replace('T', ' ').substring(0, 19);
-                return '<tr>' +
-                    '<td class="key-col" title="' + esc(f.key) + '">' + esc(f.key) + '</td>' +
-                    '<td class="size-col">' + fmtBytes(f.size) + '</td>' +
-                    '<td class="text-muted" style="font-size:0.82rem;">' + esc(mod) + '</td>' +
-                    '<td>' +
-                        '<a href="' + esc(f.url) + '" target="_blank" class="btn btn-xs btn-default" title="Open">' +
-                            '<span class="icon icon-new-window"></span>' +
-                        '</a> ' +
-                        '<button class="btn btn-xs btn-danger" title="Delete" onclick="awsDeleteFile(' + JSON.stringify(f.key) + ')">' +
-                            '<span class="icon icon-trash"></span>' +
-                        '</button>' +
-                    '</td>' +
-                '</tr>';
-            });
+        $.ajax({
+            url: '/admin/aws-s3/files',
+            method: 'GET',
+            /* Tell the server we want JSON so is_ajax detection works */
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': getCsrf()
+            },
+            data: { prefix: prefix, max_keys: 100 },
+            dataType: 'json',
+            success: function (res) {
+                if (!res.success) {
+                    $container.html('<p class="text-danger"><span class="icon icon-exclamation"></span> ' + esc(res.message || 'Unknown error') + '</p>');
+                    return;
+                }
+                if (!res.files || !res.files.length) {
+                    $container.html('<p class="text-muted">No files found' + (prefix ? ' for prefix "' + esc(prefix) + '"' : '') + '.</p>');
+                    return;
+                }
 
-            var html =
-                '<table class="table table-striped table-hover table-condensed" id="aws-file-table">' +
-                '<thead><tr>' +
-                '<th>Key / Path</th><th>Size</th><th>Last Modified</th><th>Actions</th>' +
-                '</tr></thead>' +
-                '<tbody>' + rows.join('') + '</tbody>' +
-                '</table>';
+                /* Group top-level folders vs plain files */
+                var seenFolders = {};
+                var rows = [];
+                res.files.forEach(function (f) {
+                    var key = f.key || '';
+                    var slashIdx = key.indexOf('/');
+                    if (slashIdx !== -1 && slashIdx < key.length - 1) {
+                        /* Object is inside a sub-folder — show folder row once */
+                        var folder = key.substring(0, slashIdx + 1);
+                        if (!seenFolders[folder]) {
+                            seenFolders[folder] = true;
+                            rows.push(
+                                '<tr class="folder-row">' +
+                                '<td class="key-col"><span class="icon icon-folder"></span> ' +
+                                    '<a href="#" onclick="$(\'#aws-prefix-filter\').val(\'' + folder.replace(/'/g, "\\'") + '\'); awsLoadFiles(); return false;">' + esc(folder) + '</a>' +
+                                '</td>' +
+                                '<td class="size-col">—</td>' +
+                                '<td class="text-muted" style="font-size:0.82rem;">—</td>' +
+                                '<td></td>' +
+                                '</tr>'
+                            );
+                        }
+                    } else {
+                        /* Plain file in current prefix */
+                        var mod = (f.last_modified || '').replace('T', ' ').substring(0, 19);
+                        var size = (typeof f.size === 'number') ? fmtBytes(f.size) : (f.size || '—');
+                        rows.push(
+                            '<tr>' +
+                            '<td class="key-col" title="' + esc(key) + '">' + esc(key) + '</td>' +
+                            '<td class="size-col">' + esc(size) + '</td>' +
+                            '<td class="text-muted" style="font-size:0.82rem;">' + esc(mod) + '</td>' +
+                            '<td>' +
+                                '<a href="' + esc(f.url || '#') + '" target="_blank" class="btn btn-xs btn-default" title="Open">' +
+                                    '<span class="icon icon-new-window"></span>' +
+                                '</a> ' +
+                                '<button class="btn btn-xs btn-danger" title="Delete" onclick="awsDeleteFile(' + JSON.stringify(key) + ')">' +
+                                    '<span class="icon icon-trash"></span>' +
+                                '</button>' +
+                            '</td>' +
+                            '</tr>'
+                        );
+                    }
+                });
 
-            if (res.truncated) {
-                html += '<p class="text-muted" style="font-size:0.8rem;">Results truncated — refine your prefix filter to see more.</p>';
+                var html =
+                    '<table class="table table-striped table-hover table-condensed" id="aws-file-table">' +
+                    '<thead><tr>' +
+                    '<th>Key / Path</th><th>Size</th><th>Last Modified</th><th>Actions</th>' +
+                    '</tr></thead>' +
+                    '<tbody>' + rows.join('') + '</tbody>' +
+                    '</table>';
+
+                if (res.truncated) {
+                    html += '<p class="text-muted" style="font-size:0.8rem;">Results truncated — refine your prefix filter to see more.</p>';
+                }
+                $container.html(html);
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load files.';
+                $container.html('<p class="text-danger"><span class="icon icon-exclamation"></span> ' + esc(msg) + '</p>');
             }
-            $container.html(html);
-        }).fail(function () {
-            $container.html('<p class="text-danger">Failed to load files.</p>');
         });
     };
 
@@ -342,17 +319,6 @@
             $('#aws-service-toggle').prop('checked', false);
             awsToggleService(false);
         }
-
-        /* Drop zone drag events */
-        $('#aws-drop-zone')
-            .on('dragover', function (e) { e.preventDefault(); $(this).addClass('drag-over'); })
-            .on('dragleave', function () { $(this).removeClass('drag-over'); })
-            .on('drop', function (e) { awsHandleDrop(e.originalEvent); });
-
-        /* File input change */
-        $('#aws-file-input').on('change', function () {
-            awsHandleFileSelect(this.files);
-        });
 
         /* Credential form submission (progressive enhancement) */
         $('#aws-cred-form').on('submit', function (e) {
