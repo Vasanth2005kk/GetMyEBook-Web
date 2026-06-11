@@ -127,7 +127,11 @@ def add_credentials():
 
     error = validate_credentials_payload(data)
     if error:
-        return jsonify({"success": False, "message": error}), 400
+        is_ajax = request.is_json or request.headers.get('X-CSRFToken')
+        if is_ajax:
+            return jsonify({"success": False, "message": error}), 400
+        flash(error, "error")
+        return redirect(url_for('aws_s3.aws_s3_page'))
 
     existing = _get_creds_record()
     if existing and not request.form.get("_method") == "PUT":
@@ -225,19 +229,28 @@ def update_credentials(cred_id):
 @admin_required
 def delete_credentials(cred_id):
     """DELETE /admin/aws-s3/credentials/<id>"""
+    is_ajax = request.is_json or request.headers.get('X-CSRFToken') or request.method == 'DELETE'
     record = ub.session.query(AWSCredentials).filter(AWSCredentials.id == cred_id).first()
     if not record:
-        return jsonify({"success": False, "message": "Credentials record not found."}), 404
+        if is_ajax:
+            return jsonify({"success": False, "message": "Credentials record not found."}), 404
+        flash("Credentials record not found.", "error")
+        return redirect(url_for('aws_s3.aws_s3_page'))
     try:
         ub.session.delete(record)
         ub.session.commit()
         log.info(f"AWS credentials deleted (id={cred_id}) by user '{current_user.name}'")
+        if is_ajax:
+            return jsonify({"success": True, "message": "AWS credentials deleted successfully."}), 200
         flash("AWS credentials deleted successfully.", "success")
         return redirect(url_for('aws_s3.aws_s3_page'))
     except Exception as e:
         ub.session.rollback()
         log.error(f"Failed to delete AWS credentials: {e}")
-        return jsonify({"success": False, "message": "Database error while deleting credentials."}), 500
+        if is_ajax:
+            return jsonify({"success": False, "message": "Database error while deleting credentials."}), 500
+        flash("Database error while deleting credentials.", "error")
+        return redirect(url_for('aws_s3.aws_s3_page'))
 
 
 # ---------------------------------------------------------------------------

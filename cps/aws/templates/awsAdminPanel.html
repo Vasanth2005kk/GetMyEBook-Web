@@ -7,7 +7,7 @@
 {% block body %}
 {# Inject credential ID so awsAdminPanel.js knows whether we're in edit mode #}
 <script>
-    window.AWS_CRED_ID = {% if credential %}{{ credential.id }}{% else %}null{% endif %};
+    window.AWS_CRED_ID = {% if credential %}{{credential.id}} {% else %} null{% endif %};
 </script>
 
 <div class="aws-s3-page">
@@ -32,7 +32,8 @@
                 <div class="glass-icon"><span class="icon icon-lock"></span></div>
                 <h2>{{_('AWS S3 Service Paused')}}</h2>
                 <p>{{_('Enable the service using the toggle above to access cloud storage.')}}</p>
-                <button class="btn btn-primary" type="button" onclick="awsToggleService(true); document.getElementById('aws-service-toggle').checked=true;">
+                <button class="btn btn-primary" type="button"
+                    onclick="awsToggleService(true); document.getElementById('aws-service-toggle').checked=true;">
                     <span class="icon icon-flash"></span> {{_('Activate Now')}}
                 </button>
             </div>
@@ -57,9 +58,6 @@
                 </div>
                 {% endif %}
 
-                <!-- Status message box (used by JS for AJAX feedback) -->
-                <div id="aws-stored-status" class="aws-status-box"></div>
-
                 <!-- Credential Form Panel -->
                 <div class="panel" id="aws-cred-form-card">
                     <div class="panel-body">
@@ -75,8 +73,9 @@
                                         <label class="control-label" for="aws_access_key_id">{{_('Access Key
                                             ID')}}</label>
                                         <input class="form-control" type="text" id="aws_access_key_id"
-                                            name="aws_access_key_id" placeholder="AKIA..." autocomplete="off" {% if credential %}value="{{ credential.aws_access_key_id }}"
-                                    {% endif %} required>
+                                            name="aws_access_key_id" placeholder="AKIA..." autocomplete="off" {% if
+                                            credential %}value="{{ credential.aws_access_key_id }}" {% endif %}
+                                            required>
                                         <p class="aws-form-hint">{{_('Your 20-character identifier')}}</p>
                                     </div>
                                 </div>
@@ -129,7 +128,7 @@
 
                             <div class="btn-toolbar">
                                 {% if credential %}
-                                <button type="button" class="btn btn-danger" id="btn-aws-remove">
+                                <button type="submit" form="aws-delete-form" class="btn btn-danger" id="btn-aws-remove">
                                     <span class="icon icon-trash"></span> {{_('Remove')}}
                                 </button>
                                 {% endif %}
@@ -140,8 +139,8 @@
                                     Activate')}}{% endif %}
                                 </button>
 
-                                <button type="button" class="btn btn-default" id="btn-aws-test"
-                                    onclick="awsTestFormConnection()">
+                                <button type="submit" formaction="/admin/aws-s3/test-connection" class="btn btn-default"
+                                    id="btn-aws-test">
                                     <span class="icon icon-transfer"></span>
                                     {% if credential %}{{_('Test Connection')}}{% else %}{{_('Save and Test
                                     Connection')}}{% endif %}
@@ -150,26 +149,13 @@
                         </form>
 
                         {% if credential %}
-                        <!-- Hidden delete form for credential removal -->
+                        <!-- Delete form for credential removal -->
                         <form id="aws-delete-form" method="POST" action="/admin/aws-s3/credentials/{{ credential.id }}"
-                            style="display:none;">
+                            style="display:none;"
+                            onsubmit="return confirm('Are you sure you want to remove the stored AWS credentials?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="_method" value="DELETE">
                         </form>
-                        <script>
-                            document.addEventListener('DOMContentLoaded', function () {
-                                var btn = document.getElementById('btn-aws-remove');
-                                if (btn) {
-                                    btn.addEventListener('click', function (e) {
-                                        if (confirm('Are you sure you want to remove the stored AWS credentials?')) {
-                                            document.getElementById('aws-delete-form').submit();
-                                        }
-                                    });
-                                }
-                            });
-                        </script>
-
-
                         {% endif %}
                     </div>
                 </div>
@@ -184,11 +170,6 @@
                     {% if credential %}
                     <div class="panel-heading">
                         <span class="icon icon-list text-primary"></span> {{_('Storage Explorer')}}
-                        <div class="align-right">
-                            <button class="btn btn-default btn-xs" onclick="awsLoadFiles()" title="{{_('Refresh')}}">
-                                <span style="font-size: 12px;">{{_('Refresh')}}</span>
-                            </button>
-                        </div>
                     </div>
                     {% endif %}
 
@@ -208,12 +189,15 @@
 
                         {% if credential %}
                         <!-- Prefix filter search -->
-                        <div class="input-group" style="margin-bottom: 12px;">
+                        <div class="aws-search-container"
+                            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                             <input type="text" id="aws-prefix-filter" class="form-control"
-                                placeholder="{{_('Filter by prefix (e.g. books/)')}}">
-                            <div class="input-group-btn">
-                                <button class="btn btn-default" onclick="awsLoadFiles()">
-                                    <span class="icon icon-search"></span>
+                                placeholder="{{_('Filter by prefix (e.g. books/)')}}"
+                                style="width: 85%; margin-bottom: 0; display: inline-block;">
+                            <div class="input-group-btn" style="width: 15%; display: flex;">
+                                <button class="btn btn-default" onclick="awsLoadFiles()"
+                                    style="height: 55px; width: 55px; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; background: #ff7174; box-shadow: none; padding: 0;border-left: none; border-radius: 0px 20px 20px 0px;">
+                                    <i class="fas fa-search" style="color: #fff;font-size: 20px;"></i>
                                 </button>
                             </div>
                         </div>
@@ -227,7 +211,6 @@
                                         <th>Key / Path</th>
                                         <th>Size</th>
                                         <th>Last Modified</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -241,34 +224,14 @@
                                         <td class="key-col"><span class="icon icon-folder"></span> <a
                                                 href="/admin/aws-s3/files?prefix={{ first }}">{{ first }}</a></td>
                                         <td class="size-col">-</td>
-                                        <td class="text-muted" style="font-size:0.82rem;">-</td>
-                                        <td>
-                                            <a class="btn btn-default btn-xs"
-                                                href="/admin/aws-s3/files?prefix={{ first }}" title="Open">
-                                                <span class="icon icon-folder-open"></span>
-                                            </a>
-                                        </td>
+                                        <td class="text-muted" style="font-size:1.3rem;">-</td>
                                     </tr>
                                     {% endif %}
                                     {% else %}
                                     <tr>
                                         <td class="key-col" title="{{ f.key }}">{{ f.key }}</td>
                                         <td class="size-col">{{ f.size_human }}</td>
-                                        <td class="text-muted" style="font-size:0.82rem;">{{ f.last_modified }}</td>
-                                        <td>
-                                            <a href="{{ f.url }}" target="_blank" class="btn btn-default btn-xs"
-                                                title="Open">
-                                                <span class="icon icon-new-window"></span>
-                                            </a>
-                                            <form method="POST" action="/admin/aws-s3/files"
-                                                style="display:inline-block; margin:0;">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="hidden" name="_method" value="DELETE">
-                                                <input type="hidden" name="key" value="{{ f.key }}">
-                                                <button class="btn btn-xs btn-danger" type="submit" title="Delete">
-                                                    <span class="icon icon-trash"></span></button>
-                                            </form>
-                                        </td>
+                                        <td class="text-muted" style="font-size:1.3rem;">{{ f.last_modified }}</td>
                                     </tr>
                                     {% endif %}
                                     {% endfor %}
