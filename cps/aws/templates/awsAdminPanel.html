@@ -16,12 +16,31 @@
             <h2 style="font-weight: 800;color: rgb(25, 23, 23);">{{_('Edit AWS S3 Settings')}}</h2>
             <small style="color: rgb(24, 22, 22);">{{_('Securely connect and manage your Amazon S3 storage')}}</small>
         </div>
-        <div class="aws-toggle-wrapper">
+        <div class="aws-toggle-wrapper"
+             data-csrf="{{ csrf_token() }}"
+             data-toggle-url="{{ url_for('aws_s3.toggle_aws_service') }}">
             <label class="aws-switch">
-                <input type="checkbox" id="aws-service-toggle" checked onchange="awsToggleService(this.checked)">
+                <input type="checkbox" id="aws-service-toggle"
+                    {% if aws_active %}checked{% endif %}
+                    onchange="awsToggleService(this.checked)">
                 <span class="aws-slider round"></span>
             </label>
-            <span class="aws-toggle-label" id="aws-toggle-status">{{_('Active')}}</span>
+            <span class="aws-toggle-label" id="aws-toggle-status"
+                  style="color: {% if aws_active %}#FF9900{% else %}#888{% endif %}">
+                {% if aws_active %}{{_('Active')}}{% else %}{{_('Paused')}}{% endif %}
+            </span>
+            <div id="aws-toggle-timestamps" style="font-size:0.75rem; color:#888; margin-top:4px; line-height:1.4;">
+                {% if aws_enabled_at %}
+                <div>{{_('Enabled')}}: <span id="aws-enabled-at">{{ aws_enabled_at }}</span></div>
+                {% else %}
+                <div style="display:none;">{{_('Enabled')}}: <span id="aws-enabled-at"></span></div>
+                {% endif %}
+                {% if aws_disabled_at %}
+                <div>{{_('Disabled')}}: <span id="aws-disabled-at">{{ aws_disabled_at }}</span></div>
+                {% else %}
+                <div style="display:none;">{{_('Disabled')}}: <span id="aws-disabled-at"></span></div>
+                {% endif %}
+            </div>
         </div>
     </div>
 

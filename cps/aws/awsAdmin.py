@@ -12,8 +12,9 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, render_template, flash, redirect, url_for, abort
 from ..cw_login import current_user
 from ..models.awstbl import AWSCredentials
+from ..models.settings import _Settings
 
-from .. import ub, logger
+from .. import ub, logger, config
 from .awsS3 import (
     encrypt_value,
     decrypt_value,
@@ -64,6 +65,32 @@ def _get_creds_record():
         return None
 
 
+def _get_settings_row():
+    """Return the first _Settings row, or None."""
+    try:
+        return ub.session.query(_Settings).first()
+    except Exception as e:
+        log.error(f"DB query error (settings): {e}")
+        return None
+
+
+def _get_aws_toggle_context():
+    """
+    Return a dict with aws_active, aws_enabled_at, aws_disabled_at
+    suitable for passing directly to render_template.
+    Falls back to True (active) when the settings row is missing.
+    """
+    row = _get_settings_row()
+    if row is None:
+        return {"aws_active": True, "aws_enabled_at": None, "aws_disabled_at": None}
+    fmt = lambda dt: dt.strftime("%Y-%m-%d %H:%M UTC") if dt else None
+    return {
+        "aws_active": bool(row.aws_active) if row.aws_active is not None else True,
+        "aws_enabled_at": fmt(row.aws_enabled_at),
+        "aws_disabled_at": fmt(row.aws_disabled_at),
+    }
+
+
 def _get_plain_creds(record: AWSCredentials):
     """Return a dict with credentials from a DB record.
     NOTE: aws_access_key_id is stored as plain text;
@@ -104,6 +131,7 @@ def aws_s3_page():
         output_formats=VALID_OUTPUT_FORMATS,
         title="AWS S3 Configuration",
         page="aws-s3",
+        **_get_aws_toggle_context(),
     )
 
 
@@ -395,6 +423,7 @@ def list_files():
         files=files,
         prefix=prefix,
         truncated=result.get('truncated', False),
+        **_get_aws_toggle_context(),
     )
 
 
@@ -532,3 +561,65 @@ def disconnect_post():
             return jsonify({"success": False, "message": "Failed to disconnect AWS."}), 500
         flash('Failed to disconnect AWS.', 'error')
     return redirect(url_for('aws_s3.aws_s3_page'))
+
+
+# ---------------------------------------------------------------------------
+# API – Toggle AWS S3 service active/inactive
+# ---------------------------------------------------------------------------
+
+@aws_s3.route('/admin/aws-s3/toggle', methods=['POST'])
+@admin_required
+def toggle_aws_service():
+    """
+    POST /admin/aws-s3/toggle
+    Body (JSON): { "enabled": true | false }
+
+    Persists aws_active, aws_enabled_at / aws_disabled_at to the settings row.
+    Returns JSON { success, aws_active, aws_enabled_at, aws_disabled_at }.
+    """
+    data = request.get_json(silent=True) or {}
+    enabled = data.get("enabled")
+    if enabled is None:
+        return jsonify({"success": False, "message": "Missing 'enabled' field."}), 400
+
+    enabled = bool(enabled)
+    now = datetime.datetime.utcnow()
+
+    try:
+        row = _get_settings_row()
+        if row is None:
+            return jsonify({"success": False, "message": "Settings row not found."}), 500
+
+        row.aws_active = enabled
+        if enabled:
+            row.aws_enabled_at = now
+        else:
+            row.aws_disabled_at = now
+
+        ub.session.merge(row)
+        ub.session.commit()
+
+        # Also keep the in-memory config object in sync
+        config.aws_active = enabled
+        if enabled:
+            config.aws_enabled_at = now
+        else:
+            config.aws_disabled_at = now
+
+        log.info(
+            f"AWS S3 service {'enabled' if enabled else 'disabled'} "
+            f"by user '{current_user.name}' at {now.isoformat()}"
+        )
+
+        fmt = lambda dt: dt.strftime("%Y-%m-%d %H:%M UTC") if dt else None
+        return jsonify({
+            "success": True,
+            "aws_active": enabled,
+            "aws_enabled_at": fmt(row.aws_enabled_at),
+            "aws_disabled_at": fmt(row.aws_disabled_at),
+        }), 200
+
+    except Exception as e:
+        ub.session.rollback()
+        log.error(f"Failed to toggle AWS service state: {e}")
+        return jsonify({"success": False, "message": "Database error while saving toggle state."}), 500

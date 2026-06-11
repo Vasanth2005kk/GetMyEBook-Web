@@ -19,10 +19,14 @@
     }
 
     window.awsToggleService = function (enabled) {
-        var $overlay = $('#aws-disabled-overlay');
-        var $content = $('#aws-main-content');
-        var $status = $('#aws-toggle-status');
+        var $overlay  = $('#aws-disabled-overlay');
+        var $content  = $('#aws-main-content');
+        var $status   = $('#aws-toggle-status');
+        var $wrapper  = $('.aws-toggle-wrapper');
+        var toggleUrl = $wrapper.data('toggle-url') || '/admin/aws-s3/toggle';
+        var csrf      = $wrapper.data('csrf') || getCsrf();
 
+        /* Optimistic UI update */
         if (enabled) {
             $overlay.removeClass('show');
             $content.removeClass('blurred');
@@ -32,7 +36,39 @@
             $content.addClass('blurred');
             $status.text('Paused').css('color', '#888');
         }
-        localStorage.setItem('aws_s3_service_enabled', enabled);
+
+        /* Persist to database */
+        $.ajax({
+            url: toggleUrl,
+            method: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': csrf },
+            data: JSON.stringify({ enabled: enabled }),
+            success: function (res) {
+                if (!res.success) {
+                    /* Revert optimistic UI on failure */
+                    $('#aws-service-toggle').prop('checked', !enabled);
+                    awsToggleService(!enabled);
+                    return;
+                }
+                /* Update timestamps */
+                if (res.aws_enabled_at) {
+                    var $enRow = $('#aws-enabled-at').closest('div');
+                    $('#aws-enabled-at').text(res.aws_enabled_at);
+                    $enRow.show();
+                }
+                if (res.aws_disabled_at) {
+                    var $disRow = $('#aws-disabled-at').closest('div');
+                    $('#aws-disabled-at').text(res.aws_disabled_at);
+                    $disRow.show();
+                }
+            },
+            error: function () {
+                /* Revert on network/server error */
+                $('#aws-service-toggle').prop('checked', !enabled);
+                awsToggleService(!enabled);
+            }
+        });
     };
 
     window.awsLoadFiles = function () {
@@ -116,11 +152,12 @@
     };
 
     $(function () {
-        /* Initialize Service Toggle State */
-        var savedState = localStorage.getItem('aws_s3_service_enabled');
-        if (savedState === 'false') {
-            $('#aws-service-toggle').prop('checked', false);
-            awsToggleService(false);
+        /* The initial toggle state is set by the server via the 'checked' attribute.
+           We only need to apply the visual overlay state on page load. */
+        var isChecked = $('#aws-service-toggle').is(':checked');
+        if (!isChecked) {
+            $('#aws-disabled-overlay').addClass('show');
+            $('#aws-main-content').addClass('blurred');
         }
         $('#aws-prefix-filter').on('keypress', function (e) {
             if (e.which === 13) awsLoadFiles();

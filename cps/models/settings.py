@@ -20,7 +20,7 @@ should import from here rather than redefine the tables.
 import os
 
 from sqlalchemy import (
-    Column, String, Integer, SmallInteger, Boolean, BLOB, JSON,
+    Column, String, Integer, SmallInteger, Boolean, BLOB, JSON, DateTime,
 )
 from sqlalchemy.dialects.postgresql import BYTEA
 from .. import constants, logger
@@ -204,6 +204,11 @@ class _Settings(Base):
     # ── PostgreSQL metadata ──────────────────────────────────────────────
     config_use_postgresql_metadata = Column(Boolean, default=False)
     config_postgresql_metadata_url = Column(String)
+
+    # ── AWS S3 service toggle ─────────────────────────────────────────────
+    aws_active = Column(Boolean, default=True)
+    aws_enabled_at = Column(DateTime, default=None, nullable=True)
+    aws_disabled_at = Column(DateTime, default=None, nullable=True)
 
     def __repr__(self):
         return self.__class__.__name__
