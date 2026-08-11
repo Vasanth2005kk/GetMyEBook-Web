@@ -29,7 +29,7 @@
                   style="color: {% if aws_active %}#FF9900{% else %}#888{% endif %}">
                 {% if aws_active %}{{_('Active')}}{% else %}{{_('Paused')}}{% endif %}
             </span>
-            <div id="aws-toggle-timestamps" style="font-size:0.75rem; color:#888; margin-top:4px; line-height:1.4;">
+            <div id="aws-toggle-timestamps" style="font-size:1rem; color:#888; margin-top:4px; line-height:1.4;">
                 {% if aws_enabled_at %}
                 <div>{{_('Enabled')}}: <span id="aws-enabled-at">{{ aws_enabled_at }}</span></div>
                 {% else %}

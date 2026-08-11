@@ -107,9 +107,12 @@ change_confirm_modal %}
         </button>
 
         <div class="logo-section">
-          <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 50px;">
+          <a href="{{ url_for('web.index') }}" class="logo-link">
+            <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 50px;">
+          </a>
+          <a href="{{ url_for('web.index') }}" class="logo-link" style="text-decoration: none;">
           <span class="sitename"><span class="app-name-part1">GetMy</span><span
-              class="app-name-part2">Ebook</span></span>
+              class="app-name-part2">Ebook</span></span></a>
         </div>
 
         <!-- Desktop Search Bar -->
@@ -275,9 +278,12 @@ change_confirm_modal %}
     <div class="mobile-menu-area">
       <div class="mobile-logo-section">
         <div class="logo-section">
+          <a href="{{ url_for('web.index') }}" class="logo-link" style="text-decoration: none;">
           <img src="{{ url_for('static', filename='img/48x48 px.svg') }}" alt="Brand Image" style="height: 40px;">
+          </a>
+          <a href="{{ url_for('web.index') }}" class="logo-link" style="text-decoration: none;">
           <span class="sitename"><span class="app-name-part1">GetMy</span><span
-              class="app-name-part2">Ebook</span></span>
+              class="app-name-part2">Ebook</span></span></a>
         </div>
         <button class="mobile-menu-close" onclick="toggleMobileMenu()">
           <i class="fas fa-times"></i>
