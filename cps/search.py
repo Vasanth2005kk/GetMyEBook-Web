@@ -249,12 +249,7 @@ def render_adv_search_results(term, offset=None, order=None, limit=None):
     pagination = None
 
     cc = calibre_db.get_cc_columns(config, filter_config_custom_read=True)
-    # Only try to create function if on SQLite
-    if calibre_db.engine.driver == 'sqlite':
-        try:
-            calibre_db.session.connection().connection.connection.create_function("lower", 1, db.lcase)
-        except Exception as e:
-            log.warning(f"Could not create SQLite function: {e}")
+    
     query = calibre_db.generate_linked_query(config.config_read_column, db.Books)
     q = query.outerjoin(db.books_series_link, db.Books.id == db.books_series_link.c.book)\
         .outerjoin(db.Series)\

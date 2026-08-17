@@ -352,8 +352,6 @@ class CalibreDB:
     def init_session(self, expire_on_commit=True):
         self.session = self.session_factory()
         self.session.expire_on_commit = expire_on_commit
-        # PostgreSQL doesn't need custom title_sort function
-        # self.update_title_sort(self.config)
 
     @classmethod
     def setup_db_cc_classes(cls, cc):
@@ -961,11 +959,6 @@ class CalibreDB:
             for lang in languages:
                 lang.name = isoLanguages.get_language_name(get_locale(), lang.lang_code)
             return sorted(languages, key=lambda x: x.name, reverse=reverse_order)
-
-    def update_title_sort(self, config, conn=None):
-        # PostgreSQL doesn't need custom title_sort function
-        # This function is kept for compatibility but does nothing in PostgreSQL
-        pass
 
     @classmethod
     def dispose(cls):

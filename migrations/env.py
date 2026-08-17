@@ -43,6 +43,29 @@ config.set_main_option('sqlalchemy.url', get_engine_url())
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+# Ensure all model modules are imported so declarative models register
+# themselves on Base.metadata before Alembic inspects it. Some model
+# modules are only imported by optional parts of the application (e.g.
+# `cps.aws`), which causes autogenerate to miss their tables unless we
+# force-import them here.
+try:
+    # Import common model modules. Failures are non-fatal here.
+    import cps.models.db as _db_mod
+    import cps.models.ub as _ub_mod
+    import cps.models.metadatadb as _meta_mod
+    import cps.models.settings as _settings_mod
+    import cps.models.awstbl as _awstbl_mod
+    import cps.models.authors as _authors_mod
+    import cps.models.ratings as _ratings_mod
+    import cps.models.tags as _tags_mod
+    import cps.models.comments as _comments_mod
+    import cps.models.identifiers as _ident_mod
+    import cps.models.libraryId as _lib_mod
+except Exception:
+    # If importing any model raises, continue — Alembic will still
+    # attempt to autogenerate based on whatever metadata is available.
+    pass
+
 target_metadata = Base.metadata
 
 def include_object(object, name, type_, reflected, compare_to):

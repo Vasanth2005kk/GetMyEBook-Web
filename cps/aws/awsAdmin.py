@@ -72,25 +72,7 @@ def _get_settings_row():
     except Exception as e:
         log.error(f"DB query error (settings): {e}")
         return None
-
-
-def _get_aws_toggle_context():
-    """
-    Return a dict with aws_active, aws_enabled_at, aws_disabled_at
-    suitable for passing directly to render_template.
-    Falls back to True (active) when the settings row is missing.
-    """
-    row = _get_settings_row()
-    if row is None:
-        return {"aws_active": True, "aws_enabled_at": None, "aws_disabled_at": None}
-    fmt = lambda dt: dt.strftime("%Y-%m-%d %H:%M UTC") if dt else None
-    return {
-        "aws_active": bool(row.aws_active) if row.aws_active is not None else True,
-        "aws_enabled_at": fmt(row.aws_enabled_at),
-        "aws_disabled_at": fmt(row.aws_disabled_at),
-    }
-
-
+    
 def _get_plain_creds(record: AWSCredentials):
     """Return a dict with credentials from a DB record.
     NOTE: aws_access_key_id is stored as plain text;
@@ -130,8 +112,7 @@ def aws_s3_page():
         regions=VALID_AWS_REGIONS,
         output_formats=VALID_OUTPUT_FORMATS,
         title="AWS S3 Configuration",
-        page="aws-s3",
-        **_get_aws_toggle_context(),
+        page="aws-s3"
     )
 
 
@@ -422,9 +403,7 @@ def list_files():
         page='aws-s3',
         files=files,
         prefix=prefix,
-        truncated=result.get('truncated', False),
-        **_get_aws_toggle_context(),
-    )
+        truncated=result.get('truncated', False))
 
 
 # ---------------------------------------------------------------------------

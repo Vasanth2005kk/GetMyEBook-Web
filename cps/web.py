@@ -309,12 +309,7 @@ def get_languages_json():
 def get_matching_tags():
     tag_dict = {'tags': []}
     q = calibre_db.session.query(db.Books).filter(calibre_db.common_filters(True))
-    # Only try to create function if on SQLite
-    if calibre_db.engine.driver == 'sqlite':
-        try:
-            calibre_db.session.connection().connection.connection.create_function("lower", 1, db.lcase)
-        except Exception as e:
-            log.warning(f"Could not create SQLite function: {e}")
+    
     author_input = request.args.get('author_name') or ''
     title_input = request.args.get('book_title') or ''
     include_tag_inputs = request.args.getlist('include_tag') or ''

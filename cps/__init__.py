@@ -127,6 +127,15 @@ def create_database_tables(engine):
         
         # Import all models that need to be created (ub already imported at module level)
         from . import config_sql
+
+        # Ensure all model modules are imported so `Base.metadata` contains
+        # every table before calling create_all(). Some models live in
+        # optional subpackages and may not be imported elsewhere.
+        try:
+            import cps.models  # noqa: F401
+            log.info('Imported cps.models before create_all')
+        except Exception as e:
+            log.warning(f'Could not import cps.models before create_all: {e}')
         
         # Create all tables
         ub.Base.metadata.create_all(engine)

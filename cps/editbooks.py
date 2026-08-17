@@ -116,9 +116,6 @@ def edit_book(book_id):
     modify_date = False
     edit_error = False
 
-    # create the function for sorting...
-    calibre_db.update_title_sort(config)
-
     book = calibre_db.get_filtered_book(book_id, allow_show_archived=True)
     # Book not found
     if not book:
@@ -261,73 +258,203 @@ def edit_book(book_id):
 def upload():
     if not config.config_uploading:
         abort(404)
+
     if request.method == 'POST' and 'btn-upload' in request.files:
+
         for requested_file in request.files.getlist("btn-upload"):
+
             try:
                 modify_date = False
-                # create the function for sorting...
-                calibre_db.update_title_sort(config)
-                # Only try to create function if on SQLite
-                if calibre_db.engine.driver == 'sqlite':
-                    try:
-                        calibre_db.session.connection().connection.connection.create_function('uuid4', 0, lambda: str(uuid4()))
-                    except (AttributeError, Exception):
-                        pass
 
                 meta, error = file_handling_on_upload(requested_file)
+
+                log.info(f"Meta Object: {meta}")
+                log.info(f"Upload Error: {error}")
+
+                if meta:
+                    try:
+                        log.info(f"Meta Data: {vars(meta)}")
+                    except Exception:
+                        pass
+
                 if error:
+                    log.info("Returning due to upload error")
                     return error
 
-                db_book, input_authors, title_dir = create_book_on_upload(modify_date, meta)
+                db_book, input_authors, title_dir = create_book_on_upload(
+                    modify_date,
+                    meta
+                )
 
-                # Comments need book id therefore only possible after flush
-                modify_date |= edit_book_comments(Markup(meta.description).unescape(), db_book)
+                log.info(f"Book Object: {db_book}")
+
+                try:
+                    log.info(f"Book Data: {db_book.__dict__}")
+                except Exception:
+                    pass
+
+                log.info(f"Input Authors: {input_authors}")
+                log.info(f"Title Directory: {title_dir}")
+
+                modify_date |= edit_book_comments(
+                    Markup(meta.description).unescape(),
+                    db_book
+                )
+
+                log.info(f"modify_date After Comments: {modify_date}")
 
                 book_id = db_book.id
                 title = db_book.title
+
+                log.info(f"Book ID: {book_id}")
+                log.info(f"Title: {title}")
+
                 thread = Thread.query.filter_by(book_id=book_id).first()
+
+                log.info(f"Thread: {thread}")
+
                 if not thread:
-                    auto_create_thread_for_book(book_id, title, meta.description)
-                log.info(f"Uploading file format: {meta.extension.lower()} for book id: {book_id} by user: {current_user.name} title: {title} discription: {meta.description}")
-                error = helper.update_dir_structure(book_id,
-                                                    config.get_book_path(),
-                                                    input_authors[0],
-                                                    meta.file_path,
-                                                    title_dir + meta.extension.lower())
+                    log.info("Thread Not Found. Creating Thread")
+                    auto_create_thread_for_book(
+                        book_id,
+                        title,
+                        meta.description
+                    )
+
+                log.info(
+                    f"Uploading format={meta.extension.lower()}, "
+                    f"book_id={book_id}, user={current_user.name}, "
+                    f"title={title}"
+                )
+
+                log.info(f"Book Path: {config.get_book_path()}")
+                log.info(f"First Author: {input_authors[0] if input_authors else None}")
+                log.info(f"File Path: {meta.file_path}")
+                log.info(f"Extension: {meta.extension}")
+
+                error = helper.update_dir_structure(
+                    book_id,
+                    config.get_book_path(),
+                    input_authors[0],
+                    meta.file_path,
+                    title_dir + meta.extension.lower()
+                )
+
+                log.info(f"update_dir_structure Result: {error}")
 
                 move_coverfile(meta, db_book)
+                log.info("Cover File Moved")
 
                 if modify_date:
                     calibre_db.set_metadata_dirty(book_id)
-                # save data to database, reread data
+                    log.info(f"Metadata Dirty Set For Book: {book_id}")
+
                 calibre_db.session.commit()
 
-                # Google Drive integration removed
                 if error:
+                    log.info(f"Flash Error: {error}")
                     flash(error, category="error")
-                link = '<a href="{}">{}</a>'.format(url_for('web.show_book', book_id=book_id), escape(title))
-                upload_text = N_("File %(file)s uploaded", file=link)
-                WorkerThread.add(current_user.name, TaskUpload(upload_text, escape(title)))
+
+                link = '<a href="{}">{}</a>'.format(
+                    url_for('web.show_book', book_id=book_id),
+                    escape(title)
+                )
+
+                upload_text = N_(
+                    "File %(file)s uploaded",
+                    file=link
+                )
+
+                log.info(f"Link: {link}")
+                log.info(f"Upload Text: {upload_text}")
+
+                WorkerThread.add(
+                    current_user.name,
+                    TaskUpload(upload_text, escape(title))
+                )
+
                 helper.add_book_to_thumbnail_cache(book_id)
 
+                log.info(f"Thumbnail Cache Updated For Book: {book_id}")
+
                 if len(request.files.getlist("btn-upload")) < 2:
+
+                    log.info("Single File Upload")
+
                     if current_user.role_edit() or current_user.role_admin():
-                        resp = {"location": url_for('edit-book.show_edit_book', book_id=book_id)}
-                        return Response(json.dumps(resp), mimetype='application/json')
+
+                        resp = {
+                            "location": url_for(
+                                'edit-book.show_edit_book',
+                                book_id=book_id
+                            )
+                        }
+
+                        log.info(f"Edit Response: {resp}")
+
+                        return Response(
+                            json.dumps(resp),
+                            mimetype='application/json'
+                        )
+
                     else:
-                        resp = {"location": url_for('web.show_book', book_id=book_id)}
-                        return Response(json.dumps(resp), mimetype='application/json')
+
+                        resp = {
+                            "location": url_for(
+                                'web.show_book',
+                                book_id=book_id
+                            )
+                        }
+
+                        log.info(f"View Response: {resp}")
+
+                        return Response(
+                            json.dumps(resp),
+                            mimetype='application/json'
+                        )
+
             except (OperationalError, IntegrityError, StaleDataError) as e:
+
                 calibre_db.session.rollback()
-                log.error_or_exception("Database error: {}".format(e))
-                flash(_("Oops! Database Error: %(error)s.", error=e.orig if hasattr(e, "orig") else e),
-                      category="error")
+
+                log.info(f"Database Exception: {e}")
+
+                log.error_or_exception(
+                    f"Database error: {e}"
+                )
+
+                flash(
+                    _("Oops! Database Error: %(error)s.",
+                      error=e.orig if hasattr(e, "orig") else e),
+                    category="error"
+                )
+
             except Exception as e:
+
                 calibre_db.session.rollback()
-                log.error_or_exception("Upload error: {}".format(e))
-                flash(_("Error uploading file: %(error)s", error=e), category="error")
+
+                log.info(f"General Exception: {e}")
+
+                log.error_or_exception(
+                    f"Upload error: {e}"
+                )
+
+                flash(
+                    _("Error uploading file: %(error)s",
+                      error=e),
+                    category="error"
+                )
+
                 log.error(f"❌ Upload error: {e}")
-        return Response(json.dumps({"location": url_for("web.index")}), mimetype='application/json')
+
+    log.info("Returning Index Response")
+
+    return Response(
+        json.dumps({
+            "location": url_for("web.index")
+        }),
+        mimetype='application/json'
+    )
 
 
 @editbook.route("/admin/book/convert/<int:book_id>", methods=['POST'])
@@ -1296,7 +1423,6 @@ def upload_single_file(file_request, book, book_id):
                     db_format = db.Data(book_id, file_ext.upper(), file_size, file_name)
                     calibre_db.session.add(db_format)
                     calibre_db.session.commit()
-                    calibre_db.update_title_sort(config)
                 except (OperationalError, IntegrityError, StaleDataError) as e:
                     calibre_db.session.rollback()
                     log.error_or_exception("Database error: {}".format(e))
