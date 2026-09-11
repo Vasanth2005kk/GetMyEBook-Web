@@ -468,7 +468,7 @@ input:checked+.aws-slider:before {
 .admin-panel-header p {
     margin: 0;
     color: #475569;
-    font-size: 1.5rem;
+    font-weight:600;
     line-height: 1.55;
     max-width: 980px;
 }
@@ -476,9 +476,79 @@ input:checked+.aws-slider:before {
     width: min(100%, 1280px);
     padding: 28px 34px 30px;
     backdrop-filter: blur(2px);
-    margin-left: 40px;
     flex: 1;
     font-weight: 800;
+}
+
+.s3-metrics {
+    gap: 12px;
+}
+
+.s3-metric {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-left: 4px solid #2563eb;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.72);
+    padding: 10px 16px;
+    margin-bottom: 17px;
+}
+
+.s3-metric-label {
+    font-size: 1.45rem;
+    line-height: 1.5;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.s3-metric-value {
+    display: inline-block;
+    font-size: 1.55rem;
+    line-height: 1.4;
+    font-weight: 800;
+    color: #0f766e;
+    letter-spacing: -0.03em;
+    margin-left: 6px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+
+#s3-expiring.s3-metric-value {
+    color: #b45309;
+}
+
+#s3-free-storage.s3-metric-value {
+    color: #15803d;
+}
+
+#s3-bucket-name.s3-metric-value {
+    color: #1d4ed8;
+}
+
+#s3-total-objects.s3-metric-value {
+    color: #7c3aed;
+}
+
+#s3-storage-used.s3-metric-value {
+    color: #dc2626;
+}
+
+#s3-info-loading {
+    color: #1f2937;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+#s3-info-loading .spinner-border {
+    width: 1.2rem;
+    height: 1.2rem;
+    border-width: 0.18em;
+    color: #2563eb;
+}
+
+#s3-info-error {
+    font-size: 1.3rem;
+    font-weight: 600;
+    border-radius: 10px;
+    margin-top: 10px;
 }
 
 #aws-cred-form {

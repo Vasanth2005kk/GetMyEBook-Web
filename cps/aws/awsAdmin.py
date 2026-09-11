@@ -21,6 +21,7 @@ from .awsS3 import (
     validate_credentials_payload,
     test_s3_connection,
     list_bucket_files,
+    get_bucket_stats,
     delete_bucket_file,
     VALID_AWS_REGIONS,
     VALID_OUTPUT_FORMATS,
@@ -313,6 +314,46 @@ def test_connection():
     # HTML form result — flash and redirect back to UI
     flash(result.get('message', 'Connection test completed.'), 'success' if result.get('success') else 'error')
     return redirect(url_for('aws_s3.aws_s3_page'))
+
+
+
+@aws_s3.route('/admin/aws-s3/info', methods=['GET'])
+@admin_required
+def s3_info():
+    """
+    GET /admin/aws-s3/info
+    Returns JSON with bucket statistics for the configured credentials.
+    { bucket_name, total_objects, total_bytes, storage_limit_bytes?, expiring_count? }
+    """
+    record = _get_creds_record()
+    if not record:
+        return jsonify({"success": False, "message": "AWS credentials not configured."}), 400
+
+    creds = _get_plain_creds(record)
+    stats = get_bucket_stats(creds['access_key'], creds['secret_key'], creds['region'], creds['bucket'])
+    if not stats.get('success'):
+        return jsonify({
+            "success": False,
+            "message": stats.get('message', 'Failed to gather S3 stats.'),
+        }), 500
+
+    # No storage limit field in settings by default — leave null if absent
+    row = _get_settings_row()
+    storage_limit = None
+    if row and hasattr(row, 'storage_limit_bytes'):
+        try:
+            storage_limit = int(getattr(row, 'storage_limit_bytes') or 0) or None
+        except Exception:
+            storage_limit = None
+
+    return jsonify({
+        "success": True,
+        "bucket_name": creds['bucket'],
+        "total_objects": stats.get('total_objects', 0),
+        "total_bytes": stats.get('total_bytes', 0),
+        "storage_limit_bytes": storage_limit,
+        "expiring_count": 0,
+    }), 200
 
 
 

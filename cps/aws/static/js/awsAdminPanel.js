@@ -114,6 +114,100 @@
                 }
             });
         }
+
+        // --- S3 info panel population ---
+        var s3Loading = document.getElementById('s3-info-loading');
+        var s3Error = document.getElementById('s3-info-error');
+        var s3Content = document.getElementById('s3-info-content');
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            var k = 1024, sizes = ['B','KB','MB','GB','TB','PB'];
+            var i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatNumber(n) {
+            if (n === null || n === undefined) return '-';
+            return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        function showS3Error(msg) {
+            if (s3Loading) s3Loading.style.display = 'none';
+            if (s3Content) s3Content.style.display = 'none';
+            if (s3Error) { s3Error.style.display = ''; s3Error.textContent = msg || s3Error.textContent; }
+        }
+
+        function showS3Content() {
+            if (s3Loading) s3Loading.style.display = 'none';
+            if (s3Error) s3Error.style.display = 'none';
+            if (s3Content) s3Content.style.display = '';
+        }
+
+        function populateS3Info(data) {
+            try {
+                var bucket = data.bucket_name || '-';
+                var totalObjects = (data.total_objects != null) ? formatNumber(data.total_objects) : '-';
+                var used = (data.total_bytes != null) ? formatBytes(data.total_bytes) : '-';
+                var storageLimit = (data.storage_limit_bytes != null) ? data.storage_limit_bytes : null;
+
+                var bucketEl = document.getElementById('s3-bucket-name');
+                var objsEl = document.getElementById('s3-total-objects');
+                var usedEl = document.getElementById('s3-storage-used');
+                var freeCard = document.getElementById('s3-free-storage-card');
+                var freeEl = document.getElementById('s3-free-storage');
+                var expEl = document.getElementById('s3-expiring');
+
+                if (bucketEl) bucketEl.textContent = bucket;
+                var objectsLabel = (window.AWS_S3_STRINGS && window.AWS_S3_STRINGS.objectsLabel) || 'Objects';
+                if (objsEl) objsEl.textContent = totalObjects + ' ' + objectsLabel;
+                if (usedEl) usedEl.textContent = used;
+
+                if (storageLimit != null && !isNaN(storageLimit) && Number(storageLimit) > 0) {
+                    var freeBytes = Math.max(0, Number(storageLimit) - (Number(data.total_bytes) || 0));
+                    if (freeEl) freeEl.textContent = formatBytes(freeBytes) + ' / ' + formatBytes(Number(storageLimit));
+                    if (freeCard) freeCard.style.display = '';
+                } else {
+                    if (freeEl) freeEl.textContent = '';
+                    if (freeCard) freeCard.style.display = 'none';
+                }
+
+                if (expEl) {
+                    var expCount = (data.expiring_count != null) ? data.expiring_count : (data.expiring_items ? data.expiring_items.length : 0);
+                    var expLabel = (window.AWS_S3_STRINGS && window.AWS_S3_STRINGS.expiringObjectsLabel) || 'objects expiring soon';
+                    expEl.textContent = (expCount || 0) + ' ' + expLabel;
+                }
+
+                showS3Content();
+            } catch (e) {
+                showS3Error('Error rendering S3 information');
+            }
+        }
+
+        // Fetch S3 info if credential present
+        try {
+            if (typeof window.AWS_CRED_ID === 'undefined' || window.AWS_CRED_ID === null) {
+                // no credentials configured
+                var noCredsMsg = (window.AWS_S3_STRINGS && window.AWS_S3_STRINGS.noCreds) || 'No AWS credentials configured.';
+                showS3Error(noCredsMsg);
+            } else {
+                // Fetch information from backend endpoint. Backend should provide JSON:
+                fetch('/admin/aws-s3/info', { credentials: 'same-origin' }).then(function (resp) {
+                    if (!resp.ok) { throw new Error(resp.status + ' ' + resp.statusText); }
+                    return resp.json();
+                }).then(function (json) {
+                    populateS3Info(json);
+                }).catch(function (err) {
+                    var unableMsg = (window.AWS_S3_STRINGS && window.AWS_S3_STRINGS.unableToRetrieve) || 'Unable to retrieve S3 information.';
+                    showS3Error(unableMsg);
+                    console.error('S3 info fetch error', err);
+                });
+            }
+        } catch (e) {
+            var unexpectedMsg = (window.AWS_S3_STRINGS && window.AWS_S3_STRINGS.unexpectedError) || 'Unexpected error fetching S3 information.';
+            showS3Error(unexpectedMsg);
+        }
+
     });
 
 })(jQuery);

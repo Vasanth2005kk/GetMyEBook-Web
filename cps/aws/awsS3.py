@@ -132,6 +132,20 @@ def _build_s3_client(access_key: str, secret_key: str, region: str):
     )
 
 
+def _resolve_bucket_region(access_key: str, secret_key: str, region: str, bucket_name: str) -> str:
+    """Return the real S3 bucket region to avoid boto3 region redirect retries."""
+    try:
+        client = _build_s3_client(access_key, secret_key, region)
+        location = client.get_bucket_location(Bucket=bucket_name)
+        loc = location.get("LocationConstraint")
+        if loc in (None, "", "EU"):
+            return "us-east-1"
+        return loc
+    except Exception as exc:
+        log.warning(f"Unable to resolve S3 bucket region for '{bucket_name}' using configured region '{region}'; falling back to configured region. Error: {exc}")
+        return region
+
+
 # ---------------------------------------------------------------------------
 # Core S3 operations  (all accept raw/plain-text credentials)
 # ---------------------------------------------------------------------------
@@ -142,7 +156,8 @@ def test_s3_connection(access_key: str, secret_key: str, region: str, bucket_nam
     Returns {"success": bool, "message": str, "details": dict}
     """
     try:
-        client = _build_s3_client(access_key, secret_key, region)
+        resolved_region = _resolve_bucket_region(access_key, secret_key, region, bucket_name)
+        client = _build_s3_client(access_key, secret_key, resolved_region)
 
         # 1) Verify credentials are accepted at all
         sts_client = __import__("boto3").client(
@@ -218,7 +233,8 @@ def list_bucket_files(
 ) -> Dict[str, Any]:
     """List files in an S3 bucket with optional prefix."""
     try:
-        client = _build_s3_client(access_key, secret_key, region)
+        resolved_region = _resolve_bucket_region(access_key, secret_key, region, bucket_name)
+        client = _build_s3_client(access_key, secret_key, resolved_region)
         kwargs: Dict[str, Any] = {"Bucket": bucket_name, "MaxKeys": max_keys}
         if prefix:
             kwargs["Prefix"] = prefix
@@ -242,6 +258,42 @@ def list_bucket_files(
     except Exception as e:
         log.error(f"S3 list error: {e}")
         return {"success": False, "message": str(e), "files": []}
+
+
+def get_bucket_stats(access_key: str, secret_key: str, region: str, bucket_name: str, max_keys: int = 1000) -> Dict[str, Any]:
+    """
+    Compute simple statistics for a bucket: total object count and total bytes.
+    This paginates using `list_objects_v2` and sums sizes. Returns a dict:
+    { "success": True|False, "total_objects": int, "total_bytes": int, "message": str }
+    """
+    try:
+        resolved_region = _resolve_bucket_region(access_key, secret_key, region, bucket_name)
+        client = _build_s3_client(access_key, secret_key, resolved_region)
+        continuation_token = None
+        total_objects = 0
+        total_bytes = 0
+        while True:
+            kwargs = {"Bucket": bucket_name, "MaxKeys": max_keys}
+            if continuation_token:
+                kwargs["ContinuationToken"] = continuation_token
+
+            resp = client.list_objects_v2(**kwargs)
+            contents = resp.get("Contents", [])
+            for obj in contents:
+                total_objects += 1
+                total_bytes += int(obj.get("Size", 0) or 0)
+
+            if resp.get("IsTruncated"):
+                continuation_token = resp.get("NextContinuationToken")
+                if not continuation_token:
+                    break
+            else:
+                break
+
+        return {"success": True, "total_objects": total_objects, "total_bytes": total_bytes}
+    except Exception as e:
+        log.error(f"S3 stats error: {e}")
+        return {"success": False, "message": str(e), "total_objects": 0, "total_bytes": 0}
 
 
 def delete_bucket_file(

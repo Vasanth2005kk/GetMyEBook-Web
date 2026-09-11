@@ -9,16 +9,28 @@
 <script>
     window.AWS_CRED_ID = {% if credential %}{{ credential.id }}{% else %}null{% endif %};
 </script>
+<!-- Localization strings for static JS (populated by Jinja) -->
+<script>
+    window.AWS_S3_STRINGS = {
+        objectsLabel: "{{ _('Objects') }}",
+        noCreds: "{{ _('No AWS credentials configured.') }}",
+        unableToRetrieve: "{{ _('Unable to retrieve S3 information.') }}",
+        unexpectedError: "{{ _('Unexpected error fetching S3 information.') }}",
+        expiringObjectsLabel: "{{ _('objects expiring soon') }}",
+        loadingText: "{{ _('Loading S3 information...') }}",
+    };
+</script>
 
 <div class="aws-s3-page">
     <div class="aws-admin-panel">
         <div class="admin-panel-header">
             <h2>{{ _('AWS S3 Storage Settings') }}</h2>
-            <p>{{ _('Configure your Amazon S3 bucket details for media storage integration. Ensure your credentials have appropriate permissions.') }}</p>
+            <p>{{ _('Configure your Amazon S3 bucket details for media storage integration. Ensure your credentials have
+                appropriate permissions.') }}</p>
         </div>
 
         <form id="aws-cred-form" role="form" method="POST"
-              action="{% if credential %}/admin/aws-s3/credentials/{{ credential.id }}{% else %}/admin/aws-s3/credentials{% endif %}">
+            action="{% if credential %}/admin/aws-s3/credentials/{{ credential.id }}{% else %}/admin/aws-s3/credentials{% endif %}">
             {% if credential %}
             <input type="hidden" name="_method" value="PUT">
             {% endif %}
@@ -27,13 +39,14 @@
             <div class="aws-field-group">
                 <label for="aws_access_key_id">{{ _('Access Key ID') }}</label>
                 <input class="form-control" type="text" id="aws_access_key_id" name="aws_access_key_id"
-                       placeholder="AKIA..." autocomplete="off" {% if credential %}value="{{ credential.aws_access_key_id }}"{% endif %} required>
+                    placeholder="AKIA..." autocomplete="off" {% if credential
+                    %}value="{{ credential.aws_access_key_id }}" {% endif %} required>
             </div>
 
             <div class="aws-field-group">
                 <label for="aws_secret_access_key">{{ _('Secret Access Key') }}</label>
                 <input class="form-control" type="password" id="aws_secret_access_key" name="aws_secret_access_key"
-                       placeholder="{{ _('Enter your AWS Secret Access Key') }}" autocomplete="new-password">
+                    placeholder="{{ _('Enter your AWS Secret Access Key') }}" autocomplete="new-password">
             </div>
 
             <div class="aws-two-col">
@@ -42,7 +55,8 @@
                     <select class="form-control" id="aws_default_region" name="default_region">
                         <option value="">{{ _('Select AWS Region') }}</option>
                         {% for r in regions %}
-                        <option value="{{ r }}" {% if credential and credential.default_region == r %}selected{% endif %}>{{ r }}</option>
+                        <option value="{{ r }}" {% if credential and credential.default_region==r %}selected{% endif %}>
+                            {{ r }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -51,7 +65,8 @@
                     <label for="aws_default_output_format">{{ _('Format') }}</label>
                     <select class="form-control" id="aws_default_output_format" name="default_output_format">
                         {% for f in output_formats %}
-                        <option value="{{ f }}" {% if credential and credential.default_output_format == f %}selected{% elif f == 'json' and not credential %}selected{% endif %}>{{ f }}</option>
+                        <option value="{{ f }}" {% if credential and credential.default_output_format==f %}selected{%
+                            elif f=='json' and not credential %}selected{% endif %}>{{ f }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -60,11 +75,13 @@
             <div class="aws-field-group">
                 <label for="aws_bucket_name">{{ _('Bucket Name') }}</label>
                 <input class="form-control" type="text" id="aws_bucket_name" name="bucket_name"
-                       placeholder="my-website-assets-bucket" {% if credential %}value="{{ credential.bucket_name }}"{% endif %}>
+                    placeholder="my-website-assets-bucket" {% if credential %}value="{{ credential.bucket_name }}" {%
+                    endif %}>
             </div>
 
             <div class="aws-form-actions">
-                <button type="submit" formaction="/admin/aws-s3/test-connection" class="btn btn-default" id="btn-aws-test">
+                <button type="submit" formaction="/admin/aws-s3/test-connection" class="btn btn-default"
+                    id="btn-aws-test">
                     {{ _('Test Connection') }}
                 </button>
 
@@ -81,8 +98,8 @@
 
         {% if credential %}
         <form id="aws-delete-form" method="POST" action="/admin/aws-s3/credentials/{{ credential.id }}"
-              style="display:none;"
-              onsubmit="return confirm('Are you sure you want to remove the stored AWS credentials?');">
+            style="display:none;"
+            onsubmit="return confirm('Are you sure you want to remove the stored AWS credentials?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="_method" value="DELETE">
         </form>
@@ -91,14 +108,72 @@
     <div class="aws-admin-panel-right">
         <div class="admin-panel-header">
             <h2>{{ _('AWS S3 Information') }}</h2>
+            <p>{{ _('View and manage your AWS S3 bucket information.') }}</p>
+        </div>
+
+        <div class="s3-info-panel card">
+            <div class="card-body">
+                <div id="s3-info-loading" class="s3-loading" style="display:flex; align-items:center; gap:8px;">
+                    <div class="spinner-border" role="status" aria-hidden="true"></div>
+                    <span>{{ _('Loading S3 information...') }}</span>
+                </div>
+
+                <div id="s3-info-error" class="alert alert-danger" style="display:none;">
+                    {{ _('Unable to retrieve S3 information. Check credentials or network.') }}
+                </div>
+
+                <div id="s3-info-content" style="display:none;">
+                    <div class="s3-metrics d-flex flex-column">
+                        <div class="s3-metric card mb-2">
+                            <div class="card-body d-flex align-items-center">
+                                <div>
+                                    <div class="s3-metric-label">{{ _('Bucket Name') }}: <span id="s3-bucket-name" class="s3-metric-value"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="s3-metric card mb-2">
+                            <div class="card-body d-flex align-items-center">
+                                <div>
+                                    <div class="s3-metric-label">{{ _('Total Objects') }}: <span id="s3-total-objects" class="s3-metric-value"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="s3-metric card mb-2">
+                            <div class="card-body d-flex align-items-center">
+                                <div>
+                                    <div class="s3-metric-label">{{ _('Storage Used') }}: <span id="s3-storage-used" class="s3-metric-value"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="s3-free-storage-card" class="s3-metric card mb-2" style="display:none;">
+                            <div class="card-body d-flex align-items-center">
+                                <div>
+                                    <div class="s3-metric-label">{{ _('Free Storage') }}: <span id="s3-free-storage" class="s3-metric-value"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="s3-metric card mb-2">
+                            <div class="card-body d-flex align-items-center">
+                                <div>
+                                    <div class="s3-metric-label">{{ _('Expiring Data') }}</div>
+                                    <div id="s3-expiring" class="s3-metric-value">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
-<!-- Toast container for in-page notifications -->
-<div id="aws-toast-container" class="aws-toast-container" aria-live="polite" aria-atomic="true"></div>
+    <!-- Toast container for in-page notifications -->
+    <div id="aws-toast-container" class="aws-toast-container" aria-live="polite" aria-atomic="true"></div>
 
-{% endblock %}
+    {% endblock %}
 
-{% block js %}
-<script src="{{ url_for('aws_s3.static', filename='js/awsAdminPanel.js') }}"></script>
-{% endblock %}
+    {% block js %}
+    <script src="{{ url_for('aws_s3.static', filename='js/awsAdminPanel.js') }}"></script>
+    {% endblock %}
