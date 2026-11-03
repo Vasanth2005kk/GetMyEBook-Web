@@ -39,6 +39,9 @@ from cps.file_helper import get_temp_dir
 from cps.tasks.mail import TaskEmail
 from cps import helper
 from cps.constants import SUPPORTED_CALIBRE_BINARIES
+from cps.aws import storageSync
+from cps.aws.s3Storage import StorageError
+from cps import ub
 
 log = logger.create()
 
@@ -160,6 +163,7 @@ class TaskConvert(CalibreTask):
                         local_db.session.close()
                         self._handleError(error_message)
                         return
+                self._mirror_to_s3(cur_book, new_format)
                 self.results['path'] = cur_book.path
                 self.title = cur_book.title
                 self.results['title'] = self.title
@@ -175,6 +179,18 @@ class TaskConvert(CalibreTask):
             log.error(error_message)
         self._handleError(error_message)
         return
+
+    @staticmethod
+    def _mirror_to_s3(book, data):
+        # Conversion succeeded locally; an S3 failure is logged and fixed by the next library sync
+        try:
+            storageSync.mirror_book_format(book, data, force=True)
+        except StorageError as e:
+            log.error("Converted file for book %s could not be uploaded to S3: %s", book.id, e.message)
+        except Exception as e:
+            log.error("Converted file for book %s could not be uploaded to S3: %s", book.id, e)
+        finally:
+            ub.session.remove()
 
     def _convert_kepubify(self, file_path, format_old_ext, format_new_ext):
         if config.config_embed_metadata and config.config_binariesdir:

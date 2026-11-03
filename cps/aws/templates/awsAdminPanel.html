@@ -18,6 +18,11 @@
         unexpectedError: "{{ _('Unexpected error fetching S3 information.') }}",
         expiringObjectsLabel: "{{ _('objects expiring soon') }}",
         loadingText: "{{ _('Loading S3 information...') }}",
+        enabled: "{{ _('Enabled') }}",
+        disabled: "{{ _('Disabled') }}",
+        storeS3: "{{ _('New uploads are stored in AWS S3.') }}",
+        storeLocal: "{{ _('New uploads are stored in the local library folder only.') }}",
+        toggleFailed: "{{ _('Could not change the AWS S3 storage state.') }}",
     };
 </script>
 
@@ -106,9 +111,26 @@
         {% endif %}
     </div>
     <div class="aws-admin-panel-right">
-        <div class="admin-panel-header">
-            <h2>{{ _('AWS S3 Information') }}</h2>
-            <p>{{ _('View and manage your AWS S3 bucket information.') }}</p>
+        <div class="admin-panel-header aws-header-with-toggle">
+            <div>
+                <h2>{{ _('AWS S3 Information') }}</h2>
+                <p>{{ _('View and manage your AWS S3 bucket information.') }}</p>
+            </div>
+            <div class="aws-toggle-box">
+                <div class="aws-toggle-wrapper">
+                    <label class="aws-switch" for="aws-service-toggle">
+                        <input type="checkbox" id="aws-service-toggle" {% if aws_active %}checked{% endif %}
+                            aria-describedby="aws-toggle-hint">
+                        <span class="aws-slider round"></span>
+                    </label>
+                    <span class="aws-toggle-label" id="aws-toggle-status">
+                        {% if aws_active %}{{ _('Enabled') }}{% else %}{{ _('Disabled') }}{% endif %}
+                    </span>
+                </div>
+                <div id="aws-toggle-hint" class="aws-toggle-hint">
+                    {% if aws_active %}{{ _('New uploads are stored in AWS S3.') }}{% else %}{{ _('New uploads are stored in the local library folder only.') }}{% endif %}
+                </div>
+            </div>
         </div>
 
         <div class="s3-info-panel card">
@@ -166,6 +188,18 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="s3-info-panel card" id="s3-storage-panel">
+            <div class="card-body">
+                <div class="s3-metric card mb-2">
+                    <div class="card-body">
+                        <div class="s3-metric-label">{{ _('Upload Storage') }}: <span id="s3-storage-state" class="s3-metric-value">-</span></div>
+                        <div class="s3-metric-label">{{ _('Files Stored in S3') }}: <span id="s3-stored-count" class="s3-metric-value">-</span></div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-default" id="btn-aws-sync">{{ _('Sync Library to S3') }}</button>
             </div>
         </div>
     </div>

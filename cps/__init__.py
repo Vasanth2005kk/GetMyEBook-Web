@@ -395,6 +395,12 @@ def create_app():
         log.info("✅ AWS S3 admin blueprint registered (/admin/aws-s3)")
     except Exception as _e:
         log.error(f"❌ Failed to register AWS S3 blueprint: {_e}")
+    try:
+        from .aws.storageApi import storage_api as storage_api_bp
+        app.register_blueprint(storage_api_bp)
+        log.info("✅ Storage API blueprint registered (/api/storage)")
+    except Exception as _e:
+        log.error(f"❌ Failed to register storage API blueprint: {_e}")
 
     return app
 

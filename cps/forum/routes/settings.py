@@ -9,6 +9,7 @@ from cps.forum.src.utilities.functions import generate_random_str
 from cps.forum.src.decorators.email_verified import email_verified
 from cps.forum.src.mails.registration_mail import send_validation_email
 from cps import ub
+from cps.aws import storageSync
 
 
 settings_blueprint = Blueprint("settings", __name__, template_folder="../templates")
@@ -82,8 +83,8 @@ def _error_response(message, status_code = 422):
 
 avatar_extensions = ("png", "jpeg", "jpg", "gif", "svg") 
 
-@login_required
 @settings_blueprint.route('avatar', methods=["POST"])
+@login_required
 def avatar():
 
     avatar_file = request.files['avatar']
@@ -99,17 +100,22 @@ def avatar():
         return _error_response("Please provide a valid image")
 
     avatar_name = generate_random_str(20) + '.' + extension
-    avatar_file.save(os.path.join(app.config['AVATAR_FOLDER'], avatar_name))
+    avatar_path = os.path.join(app.config['AVATAR_FOLDER'], avatar_name)
+    avatar_file.save(avatar_path)
 
     # Update forum_avatar column
     current_user.forum_avatar = avatar_name
     
     try:
         ub.session.commit()
-        
-        return jsonify({
-            "avatar":  current_user.profile_picture
-        })
+        s3_warning = None
+        if extension != "svg":
+            s3_warning = storageSync.mirror_image(storageSync.FORUM_AVATAR, current_user.id, avatar_path,
+                                                  "avatars", current_user.id)
+        response = {"avatar": current_user.profile_picture}
+        if s3_warning:
+            response["warning"] = s3_warning
+        return jsonify(response)
     except Exception as e:
         ub.session.rollback()
         flash(f"Database error: {e}", category="error")

@@ -294,6 +294,36 @@ input:checked+.aws-slider:before {
     border-radius: 50%;
 }
 
+/* Enable / disable switch in the top right of the information panel */
+.aws-header-with-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.aws-toggle-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.aws-toggle-hint {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: #64748b;
+    text-align: right;
+    max-width: 260px;
+}
+
+.aws-switch input:disabled+.aws-slider {
+    cursor: wait;
+    opacity: 0.6;
+}
+
 /* ── Glass Mirror Overlay ─────────────────────────────────── */
 .aws-content-relative {
     position: relative;

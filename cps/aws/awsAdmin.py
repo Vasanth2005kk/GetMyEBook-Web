@@ -74,6 +74,19 @@ def _get_settings_row():
         log.error(f"DB query error (settings): {e}")
         return None
     
+def _get_aws_toggle_context():
+    """aws_active / timestamps for the enable-disable switch (active unless turned off)."""
+    row = _get_settings_row()
+    fmt = lambda dt: dt.strftime("%Y-%m-%d %H:%M UTC") if dt else None
+    if row is None:
+        return {"aws_active": True, "aws_enabled_at": None, "aws_disabled_at": None}
+    return {
+        "aws_active": row.aws_active is not False,
+        "aws_enabled_at": fmt(row.aws_enabled_at),
+        "aws_disabled_at": fmt(row.aws_disabled_at),
+    }
+
+
 def _get_plain_creds(record: AWSCredentials):
     """Return a dict with credentials from a DB record.
     NOTE: aws_access_key_id is stored as plain text;
@@ -113,7 +126,8 @@ def aws_s3_page():
         regions=VALID_AWS_REGIONS,
         output_formats=VALID_OUTPUT_FORMATS,
         title="AWS S3 Configuration",
-        page="aws-s3"
+        page="aws-s3",
+        **_get_aws_toggle_context(),
     )
 
 
@@ -444,7 +458,8 @@ def list_files():
         page='aws-s3',
         files=files,
         prefix=prefix,
-        truncated=result.get('truncated', False))
+        truncated=result.get('truncated', False),
+        **_get_aws_toggle_context())
 
 
 # ---------------------------------------------------------------------------
@@ -643,3 +658,67 @@ def toggle_aws_service():
         ub.session.rollback()
         log.error(f"Failed to toggle AWS service state: {e}")
         return jsonify({"success": False, "message": "Database error while saving toggle state."}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – S3 storage integration status and library sync
+# ---------------------------------------------------------------------------
+
+@aws_s3.route('/admin/aws-s3/storage-status', methods=['GET'])
+@admin_required
+def storage_status():
+    """
+    GET /admin/aws-s3/storage-status
+    Returns whether uploads are mirrored to S3, where the configuration comes
+    from, and how many files are tracked in the stored_files table.
+    """
+    from .s3Config import s3_env_enabled, s3_admin_enabled
+    from .s3Storage import get_storage
+    from ..models.storedfile import StoredFile
+    from sqlalchemy import func
+
+    storage = get_storage()
+    counts = {}
+    try:
+        for entity_type, count, total in ub.session.query(
+                StoredFile.entity_type, func.count(StoredFile.id), func.sum(StoredFile.size_bytes)) \
+                .group_by(StoredFile.entity_type).all():
+            counts[entity_type] = {"count": count, "bytes": int(total or 0)}
+    except Exception as e:
+        ub.session.rollback()
+        log.error(f"Could not read stored_files statistics: {e}")
+    return jsonify({
+        "success": True,
+        "enabled": s3_env_enabled() and s3_admin_enabled(),
+        "admin_enabled": s3_admin_enabled(),
+        "env_enabled": s3_env_enabled(),
+        "active": storage is not None,
+        "source": storage.settings.source if storage else None,
+        "bucket": storage.bucket if storage else None,
+        "serve_downloads": storage.settings.serve_downloads if storage else None,
+        "stored_files": counts,
+    }), 200
+
+
+@aws_s3.route('/admin/aws-s3/sync', methods=['POST'])
+@admin_required
+def sync_library():
+    """
+    POST /admin/aws-s3/sync
+    Queue a background task mirroring every book file and cover to S3
+    (existing up-to-date copies are skipped) and removing objects of deleted books.
+    """
+    from .s3Storage import get_storage
+    from ..services.worker import WorkerThread
+    from ..tasks.s3_sync import TaskS3Sync
+    from flask_babel import lazy_gettext as N_
+
+    storage = get_storage()
+    if storage is None:
+        return jsonify({"success": False, "message": "AWS S3 storage is not configured."}), 400
+    check = storage.check_connection()
+    if not check["success"]:
+        return jsonify({"success": False, "message": check["message"]}), 400
+    WorkerThread.add(current_user.name, TaskS3Sync(N_("Sync library to S3"), user_id=current_user.id))
+    log.info(f"S3 library sync queued by user '{current_user.name}'")
+    return jsonify({"success": True, "message": "Library sync to S3 started. Progress is shown on the Tasks page."}), 202

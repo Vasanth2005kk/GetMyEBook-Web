@@ -26,6 +26,7 @@ from . import settings
 # Additional model modules that may not be imported during normal
 # runtime startup but need to be registered for migrations.
 from . import awstbl
+from . import storedfile
 from . import authors
 from . import ratings
 from . import tags

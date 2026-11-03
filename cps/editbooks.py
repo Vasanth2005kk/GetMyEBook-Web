@@ -42,6 +42,7 @@ from .clean_html import clean_string
 from . import config, ub, db, calibre_db
 from .services.worker import WorkerThread
 from .tasks.upload import TaskUpload
+from .aws import storageSync
 from .render_template import render_title_template
 from .kobo_sync_status import change_archived_books
 from .redirect import get_redirect_location
@@ -82,25 +83,31 @@ def edit_required(f):
 
 
 def delete_thread_by_book(book_id):
-    thread = Thread.query.filter_by(book_id=book_id).first_or_404()
+    thread = Thread.query.filter_by(book_id=book_id).first()
     if thread:
         thread.delete()
-    return True
+        return True
+    return False
 
 
 @editbook.route("/ajax/delete/<int:book_id>", methods=["POST"])
 @user_login_required
 def delete_book_from_details(book_id):
-    return Response(delete_book_from_table(book_id, "", True), mimetype='application/json')
+    result = delete_book_from_table(book_id, "", True)
+    if not calibre_db.get_book(book_id) and delete_thread_by_book(book_id):
+        log.info("Thread deleted for book_id: %s", book_id)
+    return Response(result, mimetype='application/json')
 
 
 @editbook.route("/delete/<int:book_id>", defaults={'book_format': ""}, methods=["POST"])
 @editbook.route("/delete/<int:book_id>/<string:book_format>", methods=["POST"])
 @user_login_required
 def delete_book_ajax(book_id, book_format):
-    if delete_thread_by_book(book_id):
+    result = delete_book_from_table(book_id, book_format, False, request.form.to_dict().get('location', ""))
+    # the forum thread belongs to the whole book: remove it only once the book itself is gone
+    if not book_format and not calibre_db.get_book(book_id) and delete_thread_by_book(book_id):
         log.info("Thread deleted for book_id: %s", book_id)
-    return delete_book_from_table(book_id, book_format, False, request.form.to_dict().get('location', ""))
+    return result
 
 @editbook.route("/admin/book/<int:book_id>", methods=['GET'])
 @login_required_if_no_ano
@@ -152,6 +159,7 @@ def edit_book(book_id):
             upload_format = merge_metadata(to_save, meta)
         # handle upload covers from local disk
         cover_upload_success = upload_cover(request, book)
+        cover_changed = bool(cover_upload_success)
         if cover_upload_success:
             book.has_cover = 1
             modify_date = True
@@ -164,11 +172,13 @@ def edit_book(book_id):
                 flash(_("User has no rights to upload cover"), category="error")
             if to_save["cover_url"].endswith('/static/generic_cover.jpg'):
                 book.has_cover = 0
+                cover_changed = True
             else:
                 result, error = helper.save_cover_from_url(to_save["cover_url"].strip(), book.path)
                 if result is True:
                     book.has_cover = 1
                     modify_date = True
+                    cover_changed = True
                     helper.replace_cover_thumbnail_cache(book.id)
                 else:
                     flash(error, category="error")
@@ -217,6 +227,14 @@ def edit_book(book_id):
 
         calibre_db.session.merge(book)
         calibre_db.session.commit()
+        if cover_changed:
+            if book.has_cover:
+                for message in storageSync.mirror_book_now(book, formats=[], user_id=current_user.id):
+                    flash(_("Cover saved locally, but uploading it to AWS S3 failed: %(error)s", error=message),
+                          category="warning")
+            else:
+                for message in storageSync.delete_entity_files(storageSync.BOOK_COVER, book.id):
+                    flash(message, category="warning")
         # Google Drive integration removed: uploads are handled locally
         if meta is not False \
             and edit_error is not True \
@@ -376,6 +394,12 @@ def upload():
                 helper.add_book_to_thumbnail_cache(book_id)
 
                 log.info(f"Thumbnail Cache Updated For Book: {book_id}")
+
+                # the book is now in the local library folder; copy the same files to S3
+                s3_errors = storageSync.mirror_book_now(calibre_db.get_book(book_id), user_id=current_user.id)
+                if s3_errors:
+                    flash(_("Book saved in the local library, but uploading it to AWS S3 failed: %(error)s",
+                            error=s3_errors[0]), category="warning")
 
                 if len(request.files.getlist("btn-upload")) < 2:
 
@@ -658,6 +682,7 @@ def merge_list_book():
             for book_id in vals:
                 from_book = calibre_db.get_book(book_id)
                 if from_book:
+                    copied_files, copied_formats = [], []
                     for element in from_book.data:
                         if element.format not in to_file:
                             # create new data entry with: book_id, book_format, uncompressed_size, name
@@ -668,11 +693,28 @@ def merge_list_book():
                                                                          from_book.path,
                                                                          element.name + "." + element.format.lower()))
                             copyfile(filepath_old, filepath_new)
+                            copied_files.append(filepath_new)
+                            copied_formats.append(element.format)
                             to_book.data.append(db.Data(to_book.id,
                                                         element.format,
                                                         element.uncompressed_size,
                                                         to_name))
-                    delete_book_from_table(from_book.id, "", True)
+                    from_id = from_book.id
+                    delete_book_from_table(from_id, "", True)
+                    if calibre_db.get_book(from_id):
+                        # source book could not be deleted (e.g. S3 failure): undo the merge
+                        calibre_db.session.rollback()
+                        for path in copied_files:
+                            if os.path.isfile(path):
+                                os.remove(path)
+                        return json.dumps({'success': False})
+                    if delete_thread_by_book(from_id):
+                        log.info("Thread deleted for book_id: %s", from_id)
+                    to_book = calibre_db.get_book(to_book.id)
+                    for message in storageSync.mirror_book_now(to_book, formats=copied_formats, include_cover=False,
+                                                               user_id=current_user.id):
+                        flash(_("Merged files saved locally, but uploading them to AWS S3 failed: %(error)s",
+                                error=message), category="warning")
                     return json.dumps({'success': True})
     return ""
 
@@ -991,6 +1033,11 @@ def delete_whole_book(book_id, book):
         else:
             modify_database_object([u''], getattr(book, cc_string), db.cc_classes[c.id],
                                    calibre_db.session, 'custom')
+    # rows referencing the book have to go first, PostgreSQL enforces these foreign keys
+    calibre_db.session.query(db.Data).filter(db.Data.book == book_id).delete()
+    calibre_db.session.query(Identifiers).filter(Identifiers.book == book_id).delete()
+    calibre_db.session.query(Comments).filter(Comments.book == book_id).delete()
+    calibre_db.session.flush()
     calibre_db.session.query(db.Books).filter(db.Books.id == book_id).delete()
 
 
@@ -1020,6 +1067,26 @@ def delete_book_from_table(book_id, book_format, json_response, location=""):
     if current_user.role_delete_books():
         book = calibre_db.get_book(book_id)
         if book:
+            # S3 objects first: if they cannot be deleted the book stays completely intact
+            s3_ok, s3_message = storageSync.remove_book_from_storage(book_id, book_format)
+            if not s3_ok:
+                message = _("Book was not deleted: removing its files from AWS S3 failed: %(error)s",
+                            error=s3_message)
+                if json_response:
+                    return json.dumps([{"location": url_for("edit-book.show_edit_book", book_id=book_id),
+                                        "type": "danger",
+                                        "format": "",
+                                        "message": message}])
+                flash(message, category="error")
+                return redirect(url_for('edit-book.show_edit_book', book_id=book_id))
+            if s3_message:
+                if json_response:
+                    warning = {"location": url_for("edit-book.show_edit_book", book_id=book_id),
+                               "type": "warning",
+                               "format": "",
+                               "message": s3_message}
+                else:
+                    flash(s3_message, category="warning")
             try:
                 result, error = helper.delete_book(book, config.get_book_path(), book_format=book_format.upper())
                 if not result:
@@ -1434,6 +1501,11 @@ def upload_single_file(file_request, book, book_id):
             link = '<a href="{}">{}</a>'.format(url_for('web.show_book', book_id=book.id), escape(book.title))
             upload_text = N_("File format %(ext)s added to %(book)s", ext=file_ext.upper(), book=link)
             WorkerThread.add(current_user.name, TaskUpload(upload_text, escape(book.title)))
+            calibre_db.session.expire(book, ['data'])
+            for message in storageSync.mirror_book_now(book, formats=[file_ext.upper()], include_cover=False,
+                                                       user_id=current_user.id):
+                flash(_("File saved in the local library, but uploading it to AWS S3 failed: %(error)s",
+                        error=message), category="warning")
 
             return uploader.process(
                 saved_filename, *os.path.splitext(requested_file.filename),

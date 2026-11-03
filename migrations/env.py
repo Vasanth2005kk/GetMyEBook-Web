@@ -55,6 +55,7 @@ try:
     import cps.models.metadatadb as _meta_mod
     import cps.models.settings as _settings_mod
     import cps.models.awstbl as _awstbl_mod
+    import cps.models.storedfile as _storedfile_mod
     import cps.models.authors as _authors_mod
     import cps.models.ratings as _ratings_mod
     import cps.models.tags as _tags_mod

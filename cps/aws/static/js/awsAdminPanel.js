@@ -208,6 +208,90 @@
             showS3Error(unexpectedMsg);
         }
 
+        // Upload storage status (are uploads mirrored to S3?) and library sync
+        var $btnSync = $('#btn-aws-sync');
+
+        function loadStorageStatus() {
+            fetch('/admin/aws-s3/storage-status', { credentials: 'same-origin' }).then(function (resp) {
+                return resp.json();
+            }).then(function (json) {
+                var count = 0, bytes = 0;
+                $.each(json.stored_files || {}, function (_, v) { count += v.count; bytes += v.bytes; });
+                $('#s3-storage-state').text(json.active
+                    ? 'AWS S3 (' + json.source + ')'
+                    : (json.enabled ? 'Local only (S3 not configured)'
+                        : (json.admin_enabled === false ? 'Local library folder (switched off)'
+                            : 'Local only (disabled by AWS_S3_ENABLED)')));
+                $('#s3-stored-count').text(formatNumber(count) + ' (' + formatBytes(bytes) + ')');
+                $btnSync.prop('disabled', !json.active);
+            }).catch(function (err) {
+                $('#s3-storage-state').text('-');
+                console.error('Storage status fetch error', err);
+            });
+        }
+
+        $btnSync.on('click', function () {
+            var headers = { 'Content-Type': 'application/json' };
+            var csrf = getCsrfToken();
+            if (csrf) { headers['X-CSRFToken'] = csrf; }
+            $btnSync.prop('disabled', true);
+            fetch('/admin/aws-s3/sync', {
+                method: 'POST', credentials: 'same-origin', headers: headers, body: '{}'
+            }).then(function (resp) {
+                return resp.json();
+            }).then(function (json) {
+                showToast($('<div>').text(json.message || '').html(), json.success ? 'success' : 'error');
+            }).catch(function () {
+                showToast('Failed to start library sync.', 'error');
+            }).then(function () {
+                $btnSync.prop('disabled', false);
+            });
+        });
+
+        // Enable / disable switch: on = uploads stored in S3, off = local library folder only
+        var $toggle = $('#aws-service-toggle');
+        var strings = window.AWS_S3_STRINGS || {};
+
+        function renderToggle(active) {
+            $toggle.prop('checked', active);
+            $('#aws-toggle-status').text(active ? (strings.enabled || 'Enabled') : (strings.disabled || 'Disabled'));
+            $('#aws-toggle-hint').text(active
+                ? (strings.storeS3 || 'New uploads are stored in AWS S3.')
+                : (strings.storeLocal || 'New uploads are stored in the local library folder only.'));
+        }
+
+        $toggle.on('change', function () {
+            var wanted = $toggle.is(':checked');
+            var headers = { 'Content-Type': 'application/json' };
+            var csrf = getCsrfToken();
+            if (csrf) { headers['X-CSRFToken'] = csrf; }
+            $toggle.prop('disabled', true);
+            fetch('/admin/aws-s3/toggle', {
+                method: 'POST', credentials: 'same-origin', headers: headers,
+                body: JSON.stringify({ enabled: wanted })
+            }).then(function (resp) {
+                return resp.json().then(function (json) {
+                    if (!resp.ok || !json.success) { throw new Error(json.message || resp.status); }
+                    return json;
+                });
+            }).then(function (json) {
+                renderToggle(json.aws_active);
+                showToast($('<div>').text(json.aws_active
+                    ? (strings.storeS3 || 'New uploads are stored in AWS S3.')
+                    : (strings.storeLocal || 'New uploads are stored in the local library folder only.')).html(),
+                    'success');
+                loadStorageStatus();
+            }).catch(function (err) {
+                renderToggle(!wanted);
+                showToast(strings.toggleFailed || 'Could not change the AWS S3 storage state.', 'error');
+                console.error('AWS toggle error', err);
+            }).then(function () {
+                $toggle.prop('disabled', false);
+            });
+        });
+
+        loadStorageStatus();
+
     });
 
 })(jQuery);

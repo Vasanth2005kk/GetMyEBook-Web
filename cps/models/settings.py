@@ -205,10 +205,11 @@ class _Settings(Base):
     config_use_postgresql_metadata = Column(Boolean, default=False)
     config_postgresql_metadata_url = Column(String)
 
-    # # ── AWS S3 service toggle ─────────────────────────────────────────────
-    # aws_active = Column(Boolean, default=True)
-    # aws_enabled_at = Column(DateTime, default=None, nullable=True)
-    # aws_disabled_at = Column(DateTime, default=None, nullable=True)
+    # ── AWS S3 service toggle (admin panel switch) ─────────────────────────
+    # True: uploads are stored in S3, False: local library folder only
+    aws_active = Column(Boolean, default=True)
+    aws_enabled_at = Column(DateTime, default=None, nullable=True)
+    aws_disabled_at = Column(DateTime, default=None, nullable=True)
 
     def __repr__(self):
         return self.__class__.__name__

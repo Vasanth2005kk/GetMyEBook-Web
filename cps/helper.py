@@ -30,7 +30,7 @@ import requests
 import unidecode
 from uuid import uuid4
 
-from flask import send_from_directory, make_response, abort, url_for, Response
+from flask import send_from_directory, make_response, abort, url_for, Response, redirect
 from flask_babel import gettext as _
 from flask_babel import lazy_gettext as N_
 from flask_babel import get_locale
@@ -66,6 +66,7 @@ from .tasks.metadata_backup import TaskBackupMetadata
 from .file_helper import get_temp_dir
 from .epub_helper import get_content_opf, create_new_metadata_backup, updateEpub, replace_metadata
 from .embed_helper import do_calibre_export
+from .aws import storageSync
 
 log = logger.create()
 
@@ -88,8 +89,8 @@ def convert_book_format(book_id, calibre_path, old_book_format, new_book_format,
         log.error("convert_book_format: %s", error_message)
         return error_message
     file_path = os.path.join(calibre_path, book.path, data.name)
-    # Only local filesystem is supported now
-    if not os.path.exists(file_path + "." + old_book_format.lower()):
+    # Local filesystem is the working copy; restore it from S3 if it went missing
+    if not os.path.exists(file_path + "." + old_book_format.lower()) and not storageSync.restore_book_format(book, data):
         error_message = _("%(format)s not found: %(fn)s",
                           format=old_book_format, fn=data.name + "." + old_book_format.lower())
         return error_message
@@ -229,6 +230,8 @@ def send_mail(book_id, book_format, convert, ereader_mail, calibrepath, user_id)
     for entry in iter(book.data):
         if entry.format.upper() == book_format.upper():
             converted_file_name = entry.name + '.' + book_format.lower()
+            if not os.path.isfile(os.path.join(calibrepath, book.path, converted_file_name)):
+                storageSync.restore_book_format(book, entry)
             link = '<a href="{}">{}</a>'.format(url_for('web.show_book', book_id=book_id), escape(book.title))
             email_text = N_("%(book)s send to eReader", book=link)
             for email in ereader_mail.split(','):
@@ -632,11 +635,15 @@ def update_dir_structure(book_id,
                          original_filepath=None,
                          db_filename=None):
     # Google Drive integration removed; always use local filesystem
-    return update_dir_structure_file(book_id,
-                                     calibre_path,
-                                     original_filepath,
-                                     first_author,
-                                     db_filename)
+    error = update_dir_structure_file(book_id,
+                                      calibre_path,
+                                      original_filepath,
+                                      first_author,
+                                      db_filename)
+    if not error:
+        # S3 object keys do not depend on the folder; only the recorded local path changes
+        storageSync.refresh_local_paths(calibre_db.get_book(book_id))
+    return error
 
 
 def delete_book(book, calibrepath, book_format):
@@ -678,7 +685,7 @@ def get_book_cover_internal(book, resolution=None):
                                                thumbnail.filename)
         # Send the book cover from the Calibre directory (local filesystem only)
         cover_file_path = os.path.join(config.get_book_path(), book.path)
-        if os.path.isfile(os.path.join(cover_file_path, "cover.jpg")):
+        if os.path.isfile(os.path.join(cover_file_path, "cover.jpg")) or storageSync.restore_book_cover(book):
             return send_from_directory(cover_file_path, "cover.jpg")
         else:
             # log.info(f" book cover file not found chacking !! {os.path.join(cover_file_path, 'cover.jpg')}")
@@ -826,17 +833,28 @@ def do_download_file(book, book_format, client, data, headers):
     download_name = filename = None
     # Local filesystem path for the requested file
     filename = os.path.join(config.get_book_path(), book.path)
-    if not os.path.isfile(os.path.join(filename, book_name + "." + book_format)):
-        log.error('File not found: %s', os.path.join(filename, book_name + "." + book_format))
-        abort(404)
 
     if client == "kobo" and book_format == "kepub":
         headers["Content-Disposition"] = headers["Content-Disposition"].replace(".kepub", ".kepub.epub")
 
-    if book_format == "kepub" and config.config_kepubifypath and config.config_embed_metadata:
+    embed_kepub = book_format == "kepub" and config.config_kepubifypath and config.config_embed_metadata
+    embed_calibre = book_format != "kepub" and config.config_binariesdir and config.config_embed_metadata
+    # Unmodified files are served straight from S3 via a short-lived presigned URL
+    if not embed_kepub and not embed_calibre and client != "kobo":
+        s3_url = storageSync.book_download_url(book, data, headers)
+        if s3_url:
+            log.info('Downloading file from S3: book %s, format %s', book.id, book_format)
+            return redirect(s3_url, code=302)
+
+    if not os.path.isfile(os.path.join(filename, book_name + "." + book_format)) \
+            and not storageSync.restore_book_format(book, data):
+        log.error('File not found: %s', os.path.join(filename, book_name + "." + book_format))
+        abort(404)
+
+    if embed_kepub:
         filename, download_name = do_kepubify_metadata_replace(book, os.path.join(filename,
                                                                                   book_name + "." + book_format))
-    elif book_format != "kepub" and config.config_binariesdir and config.config_embed_metadata:
+    elif embed_calibre:
         filename, download_name = do_calibre_export(book.id, book_format)
     else:
         download_name = book_name

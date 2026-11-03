@@ -61,6 +61,8 @@ from .services.worker import WorkerThread
 from .tasks_status import render_task_status
 from .usermanagement import user_login_required
 from .string_helper import strip_whitespaces
+from .aws import storageSync
+from .aws.fileValidation import ALLOWED_TYPES, sniff_mime_type, FileValidationError
 from urllib.parse import quote , unquote
 from cps.models.ratings import Ratings
 from cps.models.tags import Tags
@@ -1021,6 +1023,12 @@ def upload_author_image():
         if file_ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
             log.error(f"Invalid file format: {file_ext}")
             return jsonify({'error': 'Invalid file format'}), 400
+        try:
+            if sniff_mime_type(image_file.stream) not in ALLOWED_TYPES["images"][file_ext.lstrip('.')]:
+                log.error(f"Image content does not match extension {file_ext}")
+                return jsonify({'error': 'Invalid file format'}), 400
+        except FileValidationError as e:
+            return jsonify({'error': e.message}), e.status
         
         filename = f"author_{author_id}_{uuid.uuid4().hex[:8]}{file_ext}"
         log.info(f"Generated filename: {filename}")
@@ -1063,7 +1071,12 @@ def upload_author_image():
             return jsonify({'error': 'Author not found'}), 404
         
         log.info(f"Upload completed successfully: {filename}")
-        return jsonify({'success': True, 'filename': filename})
+        response = {'success': True, 'filename': filename}
+        s3_warning = storageSync.mirror_image(storageSync.AUTHOR_IMAGE, author.id, filepath, "authors",
+                                              current_user.id)
+        if s3_warning:
+            response['warning'] = s3_warning
+        return jsonify(response)
     except Exception as e:
         log.error(f"Upload exception: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1125,7 +1138,11 @@ def delete_author_image():
             return jsonify({'error': f'Database error: {str(e)}'}), 500
         
         log.info(f"Delete completed successfully for author {author_id}")
-        return jsonify({'success': True})
+        response = {'success': True}
+        s3_errors = storageSync.delete_entity_files(storageSync.AUTHOR_IMAGE, author.id)
+        if s3_errors:
+            response['warning'] = s3_errors[0]
+        return jsonify(response)
     except Exception as e:
         log.error(f"Delete exception: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1392,7 +1409,10 @@ def serve_book(book_id, book_format, anyname):
         return "File not in Database"
     range_header = request.headers.get('Range', None)
 
-    # Serve books from local filesystem only
+    # Serve books from the local filesystem (readers need same-origin, range-capable responses);
+    # a missing local copy is restored from S3 first
+    if not os.path.isfile(os.path.join(config.get_book_path(), book.path, data.name + "." + book_format)):
+        storageSync.restore_book_format(book, data)
     if book_format.upper() == 'TXT':
         log.info('Serving book: %s', data.name)
         try:
